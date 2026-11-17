@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { Lesson, MediaItem, Space, Song } from "@/data/demo";
+import { PaymentsSection } from "@/components/PaymentsSection";
 import { SongArtist, SongTitle } from "@/components/SongText";
 
 interface LessonEditorProps {
@@ -18,6 +19,9 @@ export function LessonEditor({ space, lesson, lessonSongs }: LessonEditorProps) 
   return (
     <>
       <AttendanceSection space={space} initial={lesson.attendance} />
+      {space.kind === "private" && (
+        <PaymentsSection students={space.students} initial={lesson.payments ?? []} />
+      )}
       <SongsSection songs={lessonSongs} />
       <NotesSection initial={lesson.notes} />
       <MediaSection initial={lesson.media} />
