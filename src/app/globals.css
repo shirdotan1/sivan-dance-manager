@@ -1,26 +1,185 @@
 @import "tailwindcss";
+/* Styles for polyfilled switches only (scoped to input.switch, which the
+   polyfill adds just in browsers without native <input switch>). */
+@import "input-switch-polyfill/input-switch-polyfill.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  color-scheme: light dark;
+  --background: #fbf8fb;
+  --surface: #ffffff;
+  --foreground: #1f1a24;
+  --muted: #5f566a;
+  --border: #d9d0de;
+  --input-border: #767076;
+  --brand: #8a2d6b;
+  --brand-strong: #6e1f54;
+  --brand-soft: #f6e6f0;
+  --on-brand: #ffffff;
+  --success: #1d6b3a;
+  --success-soft: #e3f3e8;
+  --danger: #a1281f;
+  --danger-soft: #fbe7e5;
+  --focus: #1a5fd0;
+  --target-size: 24px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #141017;
+    --surface: #1e1922;
+    --foreground: #f1ecf3;
+    --muted: #b8aec0;
+    --border: #3a3240;
+    --input-border: #8d8394;
+    --brand: #e59ccb;
+    --brand-strong: #f2bfdf;
+    --brand-soft: #3a2033;
+    --on-brand: #1f0d19;
+    --success: #7fd69c;
+    --success-soft: #16301f;
+    --danger: #f19a92;
+    --danger-soft: #3a1714;
+    --focus: #8ab4ff;
   }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --target-size: 44px;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-heebo), system-ui, sans-serif;
+}
+
+html {
+  /* Keep focused elements clear of the sticky header. */
+  scroll-padding-block-start: 5rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  accent-color: var(--brand);
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  line-height: 1.25;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+img,
+video {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+:where(a, code) {
+  overflow-wrap: anywhere;
+}
+
+/* Form controls: at least 16px so iOS doesn't zoom on focus. */
+:where(input, textarea, select, button) {
+  font: inherit;
+  font-size: max(1rem, 1em);
+}
+
+:where(input:not([type="checkbox"], [type="radio"]), textarea, select) {
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 0.625rem 0.75rem;
+}
+
+/* Touch-friendly targets (24px pointer, 44px coarse/touch). */
+:where(
+    button,
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"]),
+    nav a,
+    label:has(input[type="checkbox"], input[type="radio"])
+  ) {
+  min-block-size: var(--target-size);
+  min-inline-size: var(--target-size);
+}
+
+input[type="checkbox"] {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+input[type="checkbox"][switch] {
+  inline-size: auto;
+  block-size: auto;
+  font-size: 1.5rem;
+}
+
+:where(a:any-link, button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+input[type="checkbox"][switch]:focus-visible {
+  outline-offset: 4px;
+}
+
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.skip-link:focus-within,
+.skip-link:active {
+  position: fixed;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 50;
+  background: var(--surface);
+  color: var(--brand-strong);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
