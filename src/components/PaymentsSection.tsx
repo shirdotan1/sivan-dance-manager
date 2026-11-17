@@ -1,10 +1,8 @@
 "use client";
 
-import { useId, useState, type InputHTMLAttributes } from "react";
+import { useId, useState } from "react";
+import { SwitchInput } from "@/components/SwitchInput";
 import { formatCurrency, type Payment, type Student } from "@/data/demo";
-
-// The HTML `switch` attribute isn't in React's types yet; pass it through as-is.
-const switchAttr = { switch: "" } as InputHTMLAttributes<HTMLInputElement>;
 
 interface PaymentsSectionProps {
   students: Student[];
@@ -74,9 +72,7 @@ export function PaymentsSection({ students, initial }: PaymentsSectionProps) {
 
                     <div className="flex items-center gap-3">
                       <label htmlFor={paidId} className="flex cursor-pointer items-center gap-3 font-medium">
-                        <input
-                          {...switchAttr}
-                          type="checkbox"
+                        <SwitchInput
                           id={paidId}
                           name={`paid-${payment.studentId}`}
                           checked={payment.paid}

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SwitchPolyfill } from "@/components/SwitchPolyfill";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -30,7 +29,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main id="content" className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
           {children}
         </main>
-        <SwitchPolyfill />
       </body>
     </html>
   );
