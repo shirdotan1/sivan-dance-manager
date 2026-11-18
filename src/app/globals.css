@@ -344,10 +344,12 @@
   .tap-link {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: start;
     min-block-size: var(--target-size);
     min-inline-size: var(--target-size);
     padding-inline: 0.25rem;
+    /* Cancel the padding visually so the text stays aligned with its column. */
+    margin-inline: -0.25rem;
   }
 
   /* Guiding sentence shown instead of an empty list. */
