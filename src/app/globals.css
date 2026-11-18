@@ -339,6 +339,17 @@
     font-size: 0.875rem;
   }
 
+  /* Standalone action links (phone, listen): ≥44×44 touch area via
+     min size + padding, without changing the visible text size. */
+  .tap-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: var(--target-size);
+    min-inline-size: var(--target-size);
+    padding-inline: 0.25rem;
+  }
+
   /* Guiding sentence shown instead of an empty list. */
   .empty-state {
     border: 1.5px dashed var(--border);

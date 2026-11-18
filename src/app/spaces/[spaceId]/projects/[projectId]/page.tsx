@@ -74,7 +74,7 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
                   href={listenUrl(mainSong)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-block text-sm text-brand-strong underline underline-offset-4"
+                  className="tap-link text-sm text-brand-strong underline underline-offset-4"
                 >
                   האזנה
                   <span className="visually-hidden">

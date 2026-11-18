@@ -71,7 +71,7 @@ export function SongsSection({ initialSongIds, heading, addedTo }: SongsSectionP
                   href={listenUrl(song)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-brand-strong underline underline-offset-4"
+                  className="tap-link text-sm text-brand-strong underline underline-offset-4"
                 >
                   האזנה
                   <span className="visually-hidden">
