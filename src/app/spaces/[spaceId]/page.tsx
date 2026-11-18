@@ -2,12 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { SongTitle } from "@/components/SongText";
 import { StudentList } from "@/components/StudentList";
 import {
+  formatCurrency,
   formatDate,
   getLessonsForSpace,
+  getSong,
   getSpace,
   getStudents,
+  projectTypeLabel,
+  projects,
   spaces,
   type PrivateSpace,
   type StudioSpace,
@@ -111,13 +116,56 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
 
 function PrivateSpaceView({ space }: { space: PrivateSpace }) {
   return (
-    <section aria-labelledby="students-heading">
+    <>
+      <section aria-labelledby="projects-heading" className="mb-8">
+        <h2 id="projects-heading" className="mb-3 text-xl font-semibold">
+          פרויקטים ({projects.length})
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2" role="list">
+          {projects.map((project) => {
+            const mainSong = getSong(project.mainSongId);
+            const participants = getStudents(space, project.participantIds);
+            const unpaid = project.sessions
+              .flatMap((s) => s.payments)
+              .filter((p) => !p.paid)
+              .reduce((sum, p) => sum + p.amount, 0);
+            return (
+              <li key={project.id}>
+                <Link
+                  href={`/spaces/${space.id}/projects/${project.id}`}
+                  className="block h-full rounded-xl border border-border bg-surface p-4 hover:border-brand hover:bg-brand-soft"
+                >
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-lg font-semibold">{project.name}</span>
+                    <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm text-brand-strong">
+                      {projectTypeLabel[project.type]}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-sm">{participants.map((p) => p.name).join(", ")}</span>
+                  {mainSong && (
+                    <span className="mt-1 block text-sm text-muted">
+                      שיר ראשי: <SongTitle song={mainSong} />
+                    </span>
+                  )}
+                  <span className="mt-2 block text-sm">
+                    {project.sessions.length} מפגשים
+                    {unpaid > 0 && ` · ${formatCurrency(unpaid)} טרם שולמו`}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section aria-labelledby="students-heading">
       <h2 id="students-heading" className="mb-3 text-xl font-semibold">
         תלמידות ({space.students.length})
       </h2>
       <div className="rounded-xl border border-border bg-surface px-4 py-1">
         <StudentList students={space.students} />
       </div>
-    </section>
+      </section>
+    </>
   );
 }
