@@ -60,18 +60,21 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
           <dd>
             {mainSong ? (
               <>
-                <SongTitle song={mainSong} />
+                {/* Title and artist on separate lines, as in the song lists: joining two
+                    English strings with a dash inside RTL text displays them reversed. */}
+                <span className="block font-medium">
+                  <SongTitle song={mainSong} />
+                </span>
                 {mainSong.artist && (
-                  <>
-                    {" — "}
+                  <span className="block text-sm text-muted">
                     <SongArtist song={mainSong} />
-                  </>
-                )}{" "}
+                  </span>
+                )}
                 <a
                   href={listenUrl(mainSong)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-brand-strong underline underline-offset-4"
+                  className="mt-1 inline-block text-sm text-brand-strong underline underline-offset-4"
                 >
                   האזנה
                   <span className="visually-hidden">
