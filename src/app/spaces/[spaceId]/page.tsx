@@ -159,12 +159,12 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
       </section>
 
       <section aria-labelledby="students-heading">
-      <h2 id="students-heading" className="mb-3 text-xl font-semibold">
-        תלמידות ({space.students.length})
-      </h2>
-      <div className="rounded-xl border border-border bg-surface px-4 py-1">
-        <StudentList students={space.students} />
-      </div>
+        <h2 id="students-heading" className="mb-3 text-xl font-semibold">
+          תלמידות ({space.students.length})
+        </h2>
+        <div className="rounded-xl border border-border bg-surface px-4 py-1">
+          <StudentList students={space.students} />
+        </div>
       </section>
     </>
   );
