@@ -58,7 +58,7 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
                     </span>
                   </span>
                   <span className="text-sm">
-                    {lesson.attendance.length}/{space.students.length} נוכחות · {lesson.songIds.length} שירים
+                    {lesson.participantIds.length}/{space.students.length} נוכחות · {lesson.songIds.length} שירים
                   </span>
                 </Link>
               </li>

@@ -1,14 +1,14 @@
 /**
- * Demo data for the UI skeleton (stage 2).
- * Everything here is fake: names, phone numbers and lessons are invented.
+ * Demo data for the UI skeleton.
+ * Everything here is fake: names, phone numbers, lessons and projects are invented.
  * There is no persistence — the UI keeps edits in memory only.
  */
 
 // ---------- Types ----------
 
-export type SpaceId = "new-high-school" | "balance-studio" | "private-lessons";
-
-export type SpaceKind = "venue" | "private";
+export type StudioSpaceId = "new-high-school" | "balance-studio";
+export type PrivateSpaceId = "private-lessons";
+export type SpaceId = StudioSpaceId | PrivateSpaceId;
 
 export interface Student {
   id: string;
@@ -17,14 +17,32 @@ export interface Student {
   phone: string;
 }
 
-export interface Space {
-  id: SpaceId;
+/** A class group inside a studio space; its members come from the space's pool. */
+export interface Group {
+  id: string;
   name: string;
-  kind: SpaceKind;
+  studentIds: string[];
+}
+
+interface SpaceBase {
+  name: string;
   description: string;
   /** Each space has its own student pool. */
   students: Student[];
 }
+
+export interface StudioSpace extends SpaceBase {
+  id: StudioSpaceId;
+  kind: "studio";
+  groups: Group[];
+}
+
+export interface PrivateSpace extends SpaceBase {
+  id: PrivateSpaceId;
+  kind: "private";
+}
+
+export type Space = StudioSpace | PrivateSpace;
 
 export type SongLang = "he" | "en";
 
@@ -33,8 +51,10 @@ export interface Song {
   title: string;
   artist: string;
   style: string;
-  /** Link for finding the track (search link in the demo). */
-  url: string;
+  /** YouTube or Spotify link (optional). Without it, listening falls back to a YouTube search. */
+  link?: string;
+  /** Sivan's personal note about the song (optional). */
+  note?: string;
   /** Languages of title and artist (they can differ), for lang attributes. */
   titleLang: SongLang;
   artistLang: SongLang;
@@ -55,49 +75,69 @@ export interface Payment {
   paid: boolean;
 }
 
+/** A lesson in a studio space. */
 export interface Lesson {
   id: string;
-  spaceId: SpaceId;
+  spaceId: StudioSpaceId;
   /** ISO date, e.g. "2026-11-16". */
   date: string;
   /** 24h time, e.g. "17:30". */
   time: string;
-  /** IDs of students (from the space's pool) who attended. */
-  attendance: string[];
+  /** Students who actually took part (from the space's pool). */
+  participantIds: string[];
   songIds: string[];
   notes: string;
   media: MediaItem[];
-  /** Only for private lessons. */
-  payments?: Payment[];
+}
+
+export type ProjectType = "solo" | "group";
+
+/** A rehearsal session of a private dance project. */
+export interface Session {
+  id: string;
+  date: string;
+  time: string;
+  songIds: string[];
+  notes: string;
+  media: MediaItem[];
+  /** One entry per project participant. */
+  payments: Payment[];
+}
+
+/** A private project: preparing one choreography, solo or group. */
+export interface DanceProject {
+  id: string;
+  name: string;
+  type: ProjectType;
+  participantIds: string[];
+  mainSongId: string;
+  sessions: Session[];
 }
 
 // ---------- Song bank ----------
 
-const yt = (q: string) =>
-  `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
-
 export const songs: Song[] = [
-  { id: "s1", title: "טודו בום", artist: "סטטיק ובן אל תבורי", style: "היפ הופ", url: yt("טודו בום סטטיק ובן אל תבורי"), titleLang: "he", artistLang: "he" },
-  { id: "s2", title: "תל אביב", artist: "עומר אדם", style: "פופ ים-תיכוני", url: yt("תל אביב עומר אדם"), titleLang: "he", artistLang: "he" },
-  { id: "s3", title: "Toy", artist: "נטע ברזילי", style: "פופ", url: yt("Netta Toy"), titleLang: "en", artistLang: "he" },
-  { id: "s4", title: "הללויה", artist: "גלי עטרי", style: "קלאסי ישראלי", url: yt("הללויה גלי עטרי"), titleLang: "he", artistLang: "he" },
-  { id: "s5", title: "אבניבי", artist: "יזהר כהן", style: "דיסקו", url: yt("אבניבי יזהר כהן"), titleLang: "he", artistLang: "he" },
-  { id: "s6", title: "דיווה", artist: "דנה אינטרנשיונל", style: "דיסקו", url: yt("דיווה דנה אינטרנשיונל"), titleLang: "he", artistLang: "he" },
-  { id: "s7", title: "Uptown Funk", artist: "Mark Ronson ft. Bruno Mars", style: "פאנק", url: yt("Uptown Funk Mark Ronson Bruno Mars"), titleLang: "en", artistLang: "en" },
-  { id: "s8", title: "Dancing Queen", artist: "ABBA", style: "דיסקו", url: yt("Dancing Queen ABBA"), titleLang: "en", artistLang: "en" },
-  { id: "s9", title: "Shake It Off", artist: "Taylor Swift", style: "פופ", url: yt("Shake It Off Taylor Swift"), titleLang: "en", artistLang: "en" },
-  { id: "s10", title: "Levitating", artist: "Dua Lipa", style: "פופ", url: yt("Levitating Dua Lipa"), titleLang: "en", artistLang: "en" },
-  { id: "s11", title: "Can't Stop the Feeling!", artist: "Justin Timberlake", style: "פופ", url: yt("Can't Stop the Feeling Justin Timberlake"), titleLang: "en", artistLang: "en" },
-  { id: "s12", title: "Happy", artist: "Pharrell Williams", style: "סול", url: yt("Happy Pharrell Williams"), titleLang: "en", artistLang: "en" },
+  { id: "s1", title: "טודו בום", artist: "סטטיק ובן אל תבורי", style: "היפ הופ", titleLang: "he", artistLang: "he", note: "מצוין לחימום — קצב מדבק" },
+  { id: "s2", title: "תל אביב", artist: "עומר אדם", style: "פופ ים-תיכוני", titleLang: "he", artistLang: "he" },
+  { id: "s3", title: "Toy", artist: "נטע ברזילי", style: "פופ", titleLang: "en", artistLang: "he", note: "הגרסה המקוצרת לבחינה — 2:30" },
+  { id: "s4", title: "הללויה", artist: "גלי עטרי", style: "קלאסי ישראלי", titleLang: "he", artistLang: "he" },
+  { id: "s5", title: "אבניבי", artist: "יזהר כהן", style: "דיסקו", titleLang: "he", artistLang: "he" },
+  { id: "s6", title: "דיווה", artist: "דנה אינטרנשיונל", style: "דיסקו", titleLang: "he", artistLang: "he" },
+  { id: "s7", title: "Uptown Funk", artist: "Mark Ronson ft. Bruno Mars", style: "פאנק", titleLang: "en", artistLang: "en", note: "לעבוד על איזולציות בפזמון" },
+  { id: "s8", title: "Dancing Queen", artist: "ABBA", style: "דיסקו", titleLang: "en", artistLang: "en" },
+  { id: "s9", title: "Shake It Off", artist: "Taylor Swift", style: "פופ", titleLang: "en", artistLang: "en" },
+  { id: "s10", title: "Levitating", artist: "Dua Lipa", style: "פופ", titleLang: "en", artistLang: "en" },
+  { id: "s11", title: "Can't Stop the Feeling!", artist: "Justin Timberlake", style: "פופ", titleLang: "en", artistLang: "en" },
+  { id: "s12", title: "Happy", artist: "Pharrell Williams", style: "סול", titleLang: "en", artistLang: "en" },
 ];
 
-// ---------- Spaces & students ----------
+// ---------- Spaces, students & groups ----------
 
 export const spaces: Space[] = [
   {
     id: "new-high-school",
     name: "תיכון חדש",
-    kind: "venue",
+    kind: "studio",
     description: "חוג מחול לתלמידות חטיבה ותיכון",
     students: [
       { id: "hs1", name: "נועה כהן", phone: "050-000-1101" },
@@ -106,35 +146,51 @@ export const spaces: Space[] = [
       { id: "hs4", name: "יעל אברהם", phone: "050-000-1104" },
       { id: "hs5", name: "שירה פרידמן", phone: "050-000-1105" },
       { id: "hs6", name: "אגם ביטון", phone: "050-000-1106" },
+      { id: "hs7", name: "רותם אלון", phone: "050-000-1107" },
+      { id: "hs8", name: "עדן יוסף", phone: "050-000-1108" },
+      { id: "hs9", name: "ליה שטרן", phone: "050-000-1109" },
+    ],
+    groups: [
+      { id: "hs-g9", name: "שכבה ט׳", studentIds: ["hs1", "hs2", "hs3"] },
+      { id: "hs-g10", name: "שכבה י׳", studentIds: ["hs4", "hs5", "hs6", "hs7"] },
+      // The performance troupe overlaps the grade groups on purpose.
+      { id: "hs-troupe", name: "להקה ייצוגית", studentIds: ["hs1", "hs5", "hs8", "hs9"] },
     ],
   },
   {
     id: "balance-studio",
     name: "סטודיו באלאנס",
-    kind: "venue",
-    description: "שיעורי ג'אז ומודרני לנוער ובוגרות",
+    kind: "studio",
+    description: "שיעורי ג׳אז לירי לנוער ולבוגרות",
     students: [
       { id: "bs1", name: "רוני שפירא", phone: "052-000-2201" },
       { id: "bs2", name: "הילה דהן", phone: "052-000-2202" },
       { id: "bs3", name: "ליאור גבאי", phone: "052-000-2203" },
       { id: "bs4", name: "עדי אוחיון", phone: "052-000-2204" },
       { id: "bs5", name: "מיכל רוזן", phone: "052-000-2205" },
+      { id: "bs6", name: "סתיו קרמר", phone: "052-000-2206" },
+    ],
+    groups: [
+      { id: "bs-teens", name: "ג׳אז נוער", studentIds: ["bs1", "bs2", "bs3"] },
+      { id: "bs-adults", name: "ג׳אז בוגרות", studentIds: ["bs4", "bs5", "bs6"] },
     ],
   },
   {
     id: "private-lessons",
     name: "שיעורים פרטיים",
     kind: "private",
-    description: "שיעורים אישיים והכנה לבחינות ולהופעות",
+    description: "פרויקטי ריקוד אישיים: סולו וקבוצות קטנות",
     students: [
       { id: "pl1", name: "אלה ברק", phone: "054-000-3301" },
       { id: "pl2", name: "דניאל חדד", phone: "054-000-3302" },
       { id: "pl3", name: "זוהר נחום", phone: "054-000-3303" },
+      { id: "pl4", name: "נגה פרץ", phone: "054-000-3304" },
+      { id: "pl5", name: "קורל סעדה", phone: "054-000-3305" },
     ],
   },
 ];
 
-// ---------- Lessons ----------
+// ---------- Studio lessons ----------
 
 export const lessons: Lesson[] = [
   // תיכון חדש
@@ -143,7 +199,7 @@ export const lessons: Lesson[] = [
     spaceId: "new-high-school",
     date: "2026-11-16",
     time: "15:30",
-    attendance: ["hs1", "hs2", "hs3", "hs5"],
+    participantIds: ["hs1", "hs2", "hs3", "hs5"],
     songIds: ["s1", "s9"],
     notes: "עבדנו על הכוריאוגרפיה לטקס חנוכה. לחזור על המעבר בפזמון.",
     media: [
@@ -157,7 +213,7 @@ export const lessons: Lesson[] = [
     spaceId: "new-high-school",
     date: "2026-11-09",
     time: "15:30",
-    attendance: ["hs1", "hs2", "hs4", "hs5", "hs6"],
+    participantIds: ["hs4", "hs5", "hs6", "hs7"],
     songIds: ["s1"],
     notes: "התחלנו קטע חדש. אגם חזרה אחרי פציעה — להקל בקפיצות.",
     media: [{ id: "m4", kind: "photo", caption: "קבוצה" }],
@@ -166,8 +222,8 @@ export const lessons: Lesson[] = [
     id: "hs-2026-11-02",
     spaceId: "new-high-school",
     date: "2026-11-02",
-    time: "15:30",
-    attendance: ["hs1", "hs3", "hs4", "hs6"],
+    time: "17:00",
+    participantIds: ["hs1", "hs5", "hs8", "hs9"],
     songIds: ["s8"],
     notes: "",
     media: [],
@@ -179,9 +235,9 @@ export const lessons: Lesson[] = [
     spaceId: "balance-studio",
     date: "2026-11-15",
     time: "19:00",
-    attendance: ["bs1", "bs2", "bs4", "bs5"],
+    participantIds: ["bs1", "bs2", "bs3"],
     songIds: ["s7", "s10"],
-    notes: "ג'אז — איזולציות וסיבובים. רוני מוכנה לסולו.",
+    notes: "ג׳אז — איזולציות וסיבובים. רוני מוכנה לסולו.",
     media: [
       { id: "m5", kind: "video", caption: "קומבינציה באלכסון" },
       { id: "m6", kind: "photo", caption: "רוני בסולו" },
@@ -191,49 +247,105 @@ export const lessons: Lesson[] = [
     id: "bs-2026-11-08",
     spaceId: "balance-studio",
     date: "2026-11-08",
-    time: "19:00",
-    attendance: ["bs1", "bs2", "bs3", "bs4", "bs5"],
+    time: "20:15",
+    participantIds: ["bs4", "bs5", "bs6", "bs1"],
     songIds: ["s5", "s6"],
-    notes: "ערב דיסקו ישראלי. כולן הגיעו!",
+    notes: "ערב דיסקו ישראלי. רוני הצטרפה לבוגרות.",
     media: [{ id: "m7", kind: "photo", caption: "תמונה קבוצתית" }],
   },
+];
 
-  // שיעורים פרטיים
+// ---------- Private dance projects ----------
+
+export const projects: DanceProject[] = [
   {
-    id: "pl-2026-11-17",
-    spaceId: "private-lessons",
-    date: "2026-11-17",
-    time: "18:00",
-    attendance: ["pl1"],
-    songIds: ["s3"],
-    notes: "הכנה לבחינת בגרות במחול. לעבוד על הסיום.",
-    media: [{ id: "m8", kind: "video", caption: "ריצה של הקטע לבחינה" }],
-    payments: [{ studentId: "pl1", amount: 200, paid: false }],
-  },
-  {
-    id: "pl-2026-11-12",
-    spaceId: "private-lessons",
-    date: "2026-11-12",
-    time: "17:00",
-    attendance: ["pl2", "pl3"],
-    songIds: ["s4", "s11"],
-    notes: "שיעור זוגי — הכנה להופעה בבת מצווה.",
-    media: [],
-    payments: [
-      { studentId: "pl2", amount: 150, paid: true },
-      { studentId: "pl3", amount: 150, paid: false },
+    id: "bagrut-ella",
+    name: "סולו לבגרות במחול",
+    type: "solo",
+    participantIds: ["pl1"],
+    mainSongId: "s3",
+    sessions: [
+      {
+        id: "2026-11-17",
+        date: "2026-11-17",
+        time: "18:00",
+        songIds: ["s3"],
+        notes: "לעבוד על הסיום — הירידה לרצפה עדיין לא נקייה.",
+        media: [{ id: "m8", kind: "video", caption: "ריצה של הקטע לבחינה" }],
+        payments: [{ studentId: "pl1", amount: 200, paid: false }],
+      },
+      {
+        id: "2026-11-10",
+        date: "2026-11-10",
+        time: "18:00",
+        songIds: ["s3"],
+        notes: "בנינו את החלק האמצעי.",
+        media: [],
+        payments: [{ studentId: "pl1", amount: 200, paid: true }],
+      },
+      {
+        id: "2026-11-03",
+        date: "2026-11-03",
+        time: "18:00",
+        songIds: ["s3", "s12"],
+        notes: "מפגש פתיחה: בחירת שיר ורעיון.",
+        media: [{ id: "m9", kind: "photo", caption: "סקיצה של המבנה" }],
+        payments: [{ studentId: "pl1", amount: 200, paid: true }],
+      },
     ],
   },
   {
-    id: "pl-2026-11-05",
-    spaceId: "private-lessons",
-    date: "2026-11-05",
-    time: "18:00",
-    attendance: ["pl1"],
-    songIds: ["s12"],
-    notes: "",
-    media: [],
-    payments: [{ studentId: "pl1", amount: 200, paid: true }],
+    id: "bat-mitzvah",
+    name: "ריקוד לבת מצווה",
+    type: "group",
+    participantIds: ["pl2", "pl3", "pl4"],
+    mainSongId: "s11",
+    sessions: [
+      {
+        id: "2026-11-12",
+        date: "2026-11-12",
+        time: "17:00",
+        songIds: ["s11"],
+        notes: "סנכרון בפזמון השני. נגה צריכה לחזור על הסיבוב.",
+        media: [],
+        payments: [
+          { studentId: "pl2", amount: 120, paid: true },
+          { studentId: "pl3", amount: 120, paid: false },
+          { studentId: "pl4", amount: 120, paid: true },
+        ],
+      },
+      {
+        id: "2026-11-05",
+        date: "2026-11-05",
+        time: "17:00",
+        songIds: ["s11", "s2"],
+        notes: "",
+        media: [{ id: "m10", kind: "video", caption: "ריצה ראשונה" }],
+        payments: [
+          { studentId: "pl2", amount: 120, paid: true },
+          { studentId: "pl3", amount: 120, paid: true },
+          { studentId: "pl4", amount: 120, paid: true },
+        ],
+      },
+    ],
+  },
+  {
+    id: "competition-solo",
+    name: "סולו לתחרות ג׳אז",
+    type: "solo",
+    participantIds: ["pl5"],
+    mainSongId: "s12",
+    sessions: [
+      {
+        id: "2026-11-14",
+        date: "2026-11-14",
+        time: "16:00",
+        songIds: ["s12"],
+        notes: "עבודה על הבעה ועל שימוש בקומות.",
+        media: [],
+        payments: [{ studentId: "pl5", amount: 220, paid: false }],
+      },
+    ],
   },
 ];
 
@@ -243,19 +355,64 @@ export function getSpace(id: string): Space | undefined {
   return spaces.find((s) => s.id === id);
 }
 
+export const studioSpaces = spaces.filter((s): s is StudioSpace => s.kind === "studio");
+
+export const privateSpace = spaces.find((s): s is PrivateSpace => s.kind === "private")!;
+
+const byDateDesc = <T extends { date: string; time: string }>(a: T, b: T) =>
+  a.date + a.time < b.date + b.time ? 1 : -1;
+
 export function getLessonsForSpace(spaceId: string): Lesson[] {
-  return lessons
-    .filter((l) => l.spaceId === spaceId)
-    .sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1));
+  return lessons.filter((l) => l.spaceId === spaceId).sort(byDateDesc);
 }
 
 export function getLesson(spaceId: string, lessonId: string): Lesson | undefined {
   return lessons.find((l) => l.spaceId === spaceId && l.id === lessonId);
 }
 
-export function getSongs(ids: string[]): Song[] {
-  return ids.map((id) => songs.find((s) => s.id === id)).filter((s): s is Song => Boolean(s));
+export function getProject(projectId: string): DanceProject | undefined {
+  return projects.find((p) => p.id === projectId);
 }
+
+export function getSessions(project: DanceProject): Session[] {
+  return [...project.sessions].sort(byDateDesc);
+}
+
+export function getSession(project: DanceProject, sessionId: string): Session | undefined {
+  return project.sessions.find((s) => s.id === sessionId);
+}
+
+export function getStudents(space: Space, ids: string[]): Student[] {
+  return ids
+    .map((id) => space.students.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s));
+}
+
+export function getSong(id: string): Song | undefined {
+  return songs.find((s) => s.id === id);
+}
+
+/** Link for listening: the song's own link, or a YouTube search as a fallback. */
+export function listenUrl(song: Song): string {
+  if (song.link) return song.link;
+  const query = [song.title, song.artist].filter(Boolean).join(" ");
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+}
+
+/** Full-match regex (for the `pattern` attribute) for YouTube/Spotify links. */
+export const SONG_LINK_PATTERN =
+  "https?://([a-z0-9\\-]+\\.)*(youtube\\.com|youtu\\.be|spotify\\.com)(/.*)?";
+
+const songLinkRegex = new RegExp(`^(?:${SONG_LINK_PATTERN})$`, "i");
+
+export function isSongLink(value: string): boolean {
+  return songLinkRegex.test(value.trim());
+}
+
+export const projectTypeLabel: Record<ProjectType, string> = {
+  solo: "סולו",
+  group: "קבוצתי",
+};
 
 const dateFormatter = new Intl.DateTimeFormat("he-IL", {
   weekday: "long",

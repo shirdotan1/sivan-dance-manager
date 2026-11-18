@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { Song } from "@/data/demo";
+import { listenUrl, type Song } from "@/data/demo";
 import { SongArtist, SongTitle } from "@/components/SongText";
 
 export function SongBank({ songs }: { songs: Song[] }) {
@@ -62,7 +62,7 @@ export function SongBank({ songs }: { songs: Song[] }) {
                 </p>
               </div>
               <a
-                href={song.url}
+                href={listenUrl(song)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 font-medium text-brand-strong hover:bg-brand-soft"
