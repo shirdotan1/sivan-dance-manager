@@ -58,7 +58,7 @@ export function SongBank() {
               className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface p-4"
             >
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold">
+                <h2>
                   <SongTitle song={song} />
                 </h2>
                 {song.artist && (

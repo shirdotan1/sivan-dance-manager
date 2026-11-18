@@ -21,7 +21,7 @@ export function MediaSection({ initial }: { initial: MediaItem[] }) {
   return (
     <section aria-labelledby={headingId} className={sectionClass}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={headingId} className="text-xl font-semibold">
+        <h2 id={headingId}>
           מדיה ({items.length})
         </h2>
         <button type="button" className={secondaryButton} onClick={addPlaceholder}>

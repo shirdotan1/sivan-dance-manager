@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "בנק שירים" };
 export default function SongsPage() {
   return (
     <>
-      <h1 className="mb-1 text-2xl font-bold">בנק שירים</h1>
+      <h1 className="mb-2">בנק שירים</h1>
       <p className="mb-6 text-muted">כל השירים שעובדים איתם בשיעורים, בעברית ובאנגלית.</p>
       <SongBank />
     </>

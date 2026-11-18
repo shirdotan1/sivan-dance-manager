@@ -28,7 +28,7 @@ export default async function LessonPage({ params }: PageProps<"/spaces/[spaceId
     <>
       <Breadcrumbs items={[{ label: space.name, href: `/spaces/${space.id}` }, { label: "שיעור" }]} />
 
-      <h1 className="text-2xl font-bold">{formatDate(lesson.date)}</h1>
+      <h1 className="mb-2">{formatDate(lesson.date)}</h1>
       <p className="mb-6 text-muted">
         {space.name} · בשעה <time dateTime={`${lesson.date}T${lesson.time}`}>{lesson.time}</time>
       </p>

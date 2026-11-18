@@ -49,7 +49,7 @@ export function ParticipantsSection({ pool, groups = [], participantIds, onChang
 
   return (
     <section aria-labelledby={`${id}-heading`} className={sectionClass}>
-      <h2 id={`${id}-heading`} className="mb-3 text-xl font-semibold">
+      <h2 id={`${id}-heading`} className="mb-3">
         משתתפות ({participantIds.length})
       </h2>
 

@@ -42,11 +42,11 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
     <>
       <Breadcrumbs items={[{ label: space.name, href: `/spaces/${space.id}` }, { label: project.name }]} />
 
-      <h1 className="text-2xl font-bold">{project.name}</h1>
+      <h1 className="mb-2">{project.name}</h1>
       <p className="mb-6 text-muted">פרויקט {projectTypeLabel[project.type]}</p>
 
       <section aria-labelledby="details-heading" className="mb-8 rounded-xl border border-border bg-surface p-4 sm:p-5">
-        <h2 id="details-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="details-heading" className="mb-3">
           פרטי הפרויקט
         </h2>
         <dl className="grid gap-3 sm:grid-cols-[auto_1fr] sm:gap-x-6">
@@ -88,7 +88,7 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
       </section>
 
       <section aria-labelledby="sessions-heading">
-        <h2 id="sessions-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="sessions-heading" className="mb-3">
           מפגשים ({sessions.length})
         </h2>
         <ul className="grid gap-3" role="list">

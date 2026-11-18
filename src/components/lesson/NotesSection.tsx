@@ -11,7 +11,7 @@ export function NotesSection({ initial, label }: { initial: string; label: strin
 
   return (
     <section aria-labelledby={`${baseId}-heading`} className={sectionClass}>
-      <h2 id={`${baseId}-heading`} className="mb-3 text-xl font-semibold">
+      <h2 id={`${baseId}-heading`} className="mb-3">
         הערות
       </h2>
       <form

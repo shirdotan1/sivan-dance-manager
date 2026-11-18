@@ -52,7 +52,7 @@ export default async function SessionPage({ params }: Props) {
         ]}
       />
 
-      <h1 className="text-2xl font-bold">{formatDate(session.date)}</h1>
+      <h1 className="mb-2">{formatDate(session.date)}</h1>
       <p className="mb-6 text-muted">
         {project.name} ({projectTypeLabel[project.type]}) · בשעה{" "}
         <time dateTime={`${session.date}T${session.time}`}>{session.time}</time>

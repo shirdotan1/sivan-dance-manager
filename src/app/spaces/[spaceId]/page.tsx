@@ -35,7 +35,7 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
   return (
     <>
       <Breadcrumbs items={[{ label: space.name }]} />
-      <h1 className="text-2xl font-bold">{space.name}</h1>
+      <h1 className="mb-2">{space.name}</h1>
       <p className="mb-6 text-muted">{space.description}</p>
 
       {space.kind === "studio" ? <StudioSpaceView space={space} /> : <PrivateSpaceView space={space} />}
@@ -49,7 +49,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
   return (
     <>
       <section aria-labelledby="groups-heading" className="mb-8">
-        <h2 id="groups-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="groups-heading" className="mb-3">
           קבוצות ({space.groups.length})
         </h2>
         <ul className="grid gap-3 sm:grid-cols-2" role="list">
@@ -57,7 +57,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
             const members = getStudents(space, group.studentIds);
             return (
               <li key={group.id} className="rounded-xl border border-border bg-surface p-4">
-                <h3 className="text-lg font-semibold">{group.name}</h3>
+                <h3>{group.name}</h3>
                 <p className="mb-2 text-sm text-muted">{members.length} תלמידות</p>
                 <ul className="flex flex-wrap gap-1.5" role="list">
                   {members.map((m) => (
@@ -73,7 +73,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
       </section>
 
       <section aria-labelledby="lessons-heading" className="mb-8">
-        <h2 id="lessons-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="lessons-heading" className="mb-3">
           שיעורים
         </h2>
         {spaceLessons.length === 0 ? (
@@ -103,7 +103,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
       </section>
 
       <section aria-labelledby="students-heading">
-        <h2 id="students-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="students-heading" className="mb-3">
           כל התלמידות במרחב ({space.students.length})
         </h2>
         <div className="rounded-xl border border-border bg-surface px-4 py-1">
@@ -118,7 +118,7 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
   return (
     <>
       <section aria-labelledby="projects-heading" className="mb-8">
-        <h2 id="projects-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="projects-heading" className="mb-3">
           פרויקטים ({projects.length})
         </h2>
         <ul className="grid gap-3 sm:grid-cols-2" role="list">
@@ -159,7 +159,7 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
       </section>
 
       <section aria-labelledby="students-heading">
-        <h2 id="students-heading" className="mb-3 text-xl font-semibold">
+        <h2 id="students-heading" className="mb-3">
           תלמידות ({space.students.length})
         </h2>
         <div className="rounded-xl border border-border bg-surface px-4 py-1">

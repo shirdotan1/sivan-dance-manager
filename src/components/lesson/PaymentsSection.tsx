@@ -32,7 +32,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
   return (
     <section aria-labelledby={`${baseId}-heading`} className={sectionClass}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${baseId}-heading`} className="text-xl font-semibold">
+        <h2 id={`${baseId}-heading`}>
           תשלומים
         </h2>
         <p className="text-sm text-muted">
