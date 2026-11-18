@@ -22,6 +22,11 @@
   --coral: #e07a5f; /* decorative accent: bars, rings, highlights */
   --coral-strong: #b4472e; /* coral usable for text / small UI (≥4.5:1 on white) */
   --coral-soft: #fcede8;
+  /* Paid switch track colors. The thumb is white in both themes, so these
+     stay dark in dark mode too: ≥3:1 against the white thumb (on #b4472e
+     ≈5.4:1, off #8a7884 ≈4.1:1) and ≥3:1 against the dark surface. */
+  --switch-on: #b4472e;
+  --switch-off: #8a7884;
   --success: #2f6b45;
   --success-soft: #e6f3ea;
   --danger: #a1281f;
@@ -190,7 +195,7 @@
     inline-size: auto;
     block-size: auto;
     font-size: 1.5rem;
-    accent-color: var(--coral-strong);
+    accent-color: var(--switch-on);
   }
 
   :where(a:any-link, button, input, textarea, select, summary):focus-visible {
@@ -358,6 +363,13 @@
       border-color: ButtonText;
     }
   }
+}
+
+/* Polyfilled switch: replace the light-grey "off" track (too faint behind
+   the white thumb) with a darker one. Unlayered and after the polyfill's
+   import so it overrides the same-specificity rule there. */
+input.switch {
+  --switch-background: var(--switch-off);
 }
 
 .visually-hidden:where(:not(:focus-within, :active)) {
