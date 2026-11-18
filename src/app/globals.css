@@ -128,6 +128,12 @@ video {
   min-inline-size: var(--target-size);
 }
 
+/* Error state is set by script after the user leaves the field (or submits). */
+:where(input, textarea, select)[aria-invalid="true"] {
+  border-color: var(--danger);
+  background-color: var(--danger-soft);
+}
+
 input[type="checkbox"] {
   inline-size: 1.25rem;
   block-size: 1.25rem;
