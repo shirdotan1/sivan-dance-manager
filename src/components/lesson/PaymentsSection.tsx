@@ -41,7 +41,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
       </div>
 
       {payments.length === 0 ? (
-        <p className="text-muted">אין משתתפות במפגש הזה.</p>
+        <p className="empty-state">אין משתתפות במפגש הזה.</p>
       ) : (
         <ul className="divider-list" role="list">
           {payments.map((payment) => {
@@ -75,7 +75,9 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
                       />
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    {/* Switch above its status badge: same footprint for paid and unpaid,
+                        so every row keeps the amount and switch side by side. */}
+                    <div className="flex flex-col items-start gap-1">
                       <label htmlFor={paidId} className="flex cursor-pointer items-center gap-3 font-medium">
                         <SwitchInput
                           id={paidId}

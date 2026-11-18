@@ -30,7 +30,7 @@ export function MediaSection({ initial }: { initial: MediaItem[] }) {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-muted">אין עדיין תמונות או סרטונים.</p>
+        <p className="empty-state">אין עדיין תמונות או סרטונים. אפשר להוסיף תמונה בכפתור למעלה.</p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="list">
           {items.map((item, i) => (

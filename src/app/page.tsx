@@ -22,7 +22,9 @@ export default function HomePage() {
         <p className="text-lg text-muted">לאן נכנסים היום?</p>
       </section>
 
-      <ul className="grid gap-5 sm:grid-cols-2" role="list">
+      {/* One column on phones, all three spaces in a row once there's room
+          (no 2+1 in-between that leaves one card alone). */}
+      <ul className="grid gap-5 md:grid-cols-3" role="list">
         {spaces.map((space) => {
           return (
             <li key={space.id}>

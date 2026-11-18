@@ -22,11 +22,17 @@
   --coral: #e07a5f; /* decorative accent: bars, rings, highlights */
   --coral-strong: #b4472e; /* coral usable for text / small UI (≥4.5:1 on white) */
   --coral-soft: #fcede8;
+  /* Paid switch track colors. The thumb is white in both themes, so these
+     stay dark in dark mode too: ≥3:1 against the white thumb (on #b4472e
+     ≈5.4:1, off #8a7884 ≈4.1:1) and ≥3:1 against the dark surface. */
+  --switch-on: #b4472e;
+  --switch-off: #8a7884;
   --success: #2f6b45;
   --success-soft: #e6f3ea;
   --danger: #a1281f;
   --danger-soft: #fbe9e6;
-  --focus: #1a5fd0;
+  /* Keyboard focus ring in the main accent: ≈9:1 on ivory/white. */
+  --focus: #7a2348;
   --shadow-card: 0 1px 2px rgb(46 26 42 / 0.05), 0 8px 24px -8px rgb(46 26 42 / 0.12);
   --shadow-card-hover: 0 2px 4px rgb(46 26 42 / 0.06), 0 14px 32px -10px rgb(46 26 42 / 0.18);
   --radius-card: 1.25rem;
@@ -52,7 +58,7 @@
     --success-soft: #17301f;
     --danger: #f3a097;
     --danger-soft: #3c1814;
-    --focus: #8ab4ff;
+    --focus: #e9a6c4; /* ≈9:1 on the dark background */
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.45);
     --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px -10px rgb(0 0 0 / 0.55);
   }
@@ -82,8 +88,8 @@
    still override them where needed. */
 @layer base {
   html {
-    /* Keep focused elements clear of the sticky header. */
-    scroll-padding-block-start: 6rem;
+    /* Keep focused elements clear of the sticky header (incl. its safe-area padding). */
+    scroll-padding-block-start: calc(6rem + env(safe-area-inset-top, 0px));
   }
 
   body {
@@ -190,10 +196,10 @@
     inline-size: auto;
     block-size: auto;
     font-size: 1.5rem;
-    accent-color: var(--coral-strong);
+    accent-color: var(--switch-on);
   }
 
-  :where(a:any-link, button, input, textarea, select, summary):focus-visible {
+  :where(a:any-link, button, input, textarea, select, summary, [tabindex]):focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 3px;
   }
@@ -234,9 +240,20 @@
       border-color: var(--coral);
     }
 
+    /* Press feedback (touch): settle back down with a softer shadow and tinted fill. */
+    &:active {
+      background: var(--brand-soft);
+      box-shadow: var(--shadow-card);
+    }
+
     @media (prefers-reduced-motion: no-preference) {
       &:hover {
         translate: 0 -2px;
+      }
+
+      &:active {
+        translate: 0;
+        scale: 0.99;
       }
     }
   }
@@ -266,7 +283,14 @@
     transition:
       background-color 0.15s ease,
       box-shadow 0.15s ease,
-      color 0.15s ease;
+      color 0.15s ease,
+      scale 0.15s ease;
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:active {
+        scale: 0.97;
+      }
+    }
   }
 
   /* Primary: burgundy fill, coral underline accent that grows on hover. */
@@ -279,6 +303,11 @@
       background: var(--brand-strong);
       box-shadow: inset 0 -5px 0 var(--coral);
     }
+
+    &:active {
+      background: var(--brand-strong);
+      box-shadow: inset 0 -2px 0 var(--coral);
+    }
   }
 
   /* Secondary: outline only. */
@@ -289,6 +318,10 @@
 
     &:hover {
       background: var(--brand-soft);
+    }
+
+    &:active {
+      background: color-mix(in oklab, var(--brand-soft), var(--brand) 18%);
     }
   }
 
@@ -306,6 +339,29 @@
     font-size: 0.875rem;
   }
 
+  /* Standalone action links (phone, listen): ≥44×44 touch area via
+     min size + padding, without changing the visible text size. */
+  .tap-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: start;
+    min-block-size: var(--target-size);
+    min-inline-size: var(--target-size);
+    padding-inline: 0.25rem;
+    /* Cancel the padding visually so the text stays aligned with its column. */
+    margin-inline: -0.25rem;
+  }
+
+  /* Guiding sentence shown instead of an empty list. */
+  .empty-state {
+    border: 1.5px dashed var(--border);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    color: var(--muted);
+    text-align: center;
+    text-wrap: balance;
+  }
+
   /* Disclosure panels (add-song forms). */
   .disclosure {
     border: 1px solid var(--border);
@@ -317,6 +373,11 @@
       font-weight: 600;
       color: var(--brand-strong);
       cursor: pointer;
+      border-radius: 1rem;
+
+      &:active {
+        background: var(--brand-soft);
+      }
     }
 
     &[open] > summary {
@@ -358,6 +419,32 @@
       border-color: ButtonText;
     }
   }
+}
+
+/* ---------- Safe areas (notches, home indicator) ----------
+   With viewport-fit=cover the page draws under system UI, so edge-anchored
+   UI pads itself by the insets. Physical left/right on purpose: the insets
+   are physical, not text-direction based. */
+.safe-header {
+  padding-top: env(safe-area-inset-top, 0px);
+
+  & > div {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.safe-page {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(2.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
+}
+
+/* Polyfilled switch: replace the light-grey "off" track (too faint behind
+   the white thumb) with a darker one. Unlayered and after the polyfill's
+   import so it overrides the same-specificity rule there. */
+input.switch {
+  --switch-background: var(--switch-off);
 }
 
 .visually-hidden:where(:not(:focus-within, :active)) {
