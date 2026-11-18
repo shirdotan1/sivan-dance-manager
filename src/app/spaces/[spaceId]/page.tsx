@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDate, getLessonsForSpace, getSpace, spaces } from "@/data/demo";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { StudentList } from "@/components/StudentList";
+import {
+  formatDate,
+  getLessonsForSpace,
+  getSpace,
+  getStudents,
+  spaces,
+  type PrivateSpace,
+  type StudioSpace,
+} from "@/data/demo";
 
 export function generateStaticParams() {
   return spaces.map((space) => ({ spaceId: space.id }));
@@ -17,30 +27,50 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
   const space = getSpace(spaceId);
   if (!space) notFound();
 
+  return (
+    <>
+      <Breadcrumbs items={[{ label: space.name }]} />
+      <h1 className="text-2xl font-bold">{space.name}</h1>
+      <p className="mb-6 text-muted">{space.description}</p>
+
+      {space.kind === "studio" ? <StudioSpaceView space={space} /> : <PrivateSpaceView space={space} />}
+    </>
+  );
+}
+
+function StudioSpaceView({ space }: { space: StudioSpace }) {
   const spaceLessons = getLessonsForSpace(space.id);
 
   return (
     <>
-      <nav aria-label="פירורי לחם" className="mb-2 text-sm">
-        <ol className="flex flex-wrap gap-1 text-muted">
-          <li>
-            <Link href="/" className="underline underline-offset-4">
-              המרחבים שלי
-            </Link>
-            <span aria-hidden="true"> ‹ </span>
-          </li>
-          <li aria-current="page">{space.name}</li>
-        </ol>
-      </nav>
-
-      <h1 className="text-2xl font-bold">{space.name}</h1>
-      <p className="mb-6 text-muted">{space.description}</p>
+      <section aria-labelledby="groups-heading" className="mb-8">
+        <h2 id="groups-heading" className="mb-3 text-xl font-semibold">
+          קבוצות ({space.groups.length})
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2" role="list">
+          {space.groups.map((group) => {
+            const members = getStudents(space, group.studentIds);
+            return (
+              <li key={group.id} className="rounded-xl border border-border bg-surface p-4">
+                <h3 className="text-lg font-semibold">{group.name}</h3>
+                <p className="mb-2 text-sm text-muted">{members.length} תלמידות</p>
+                <ul className="flex flex-wrap gap-1.5" role="list">
+                  {members.map((m) => (
+                    <li key={m.id} className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm">
+                      {m.name}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <section aria-labelledby="lessons-heading" className="mb-8">
         <h2 id="lessons-heading" className="mb-3 text-xl font-semibold">
           שיעורים
         </h2>
-
         {spaceLessons.length === 0 ? (
           <p>עדיין אין שיעורים במרחב הזה.</p>
         ) : (
@@ -58,7 +88,7 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
                     </span>
                   </span>
                   <span className="text-sm">
-                    {lesson.participantIds.length}/{space.students.length} נוכחות · {lesson.songIds.length} שירים
+                    {lesson.participantIds.length} משתתפות · {lesson.songIds.length} שירים
                   </span>
                 </Link>
               </li>
@@ -69,23 +99,25 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3 text-xl font-semibold">
-          מאגר תלמידות ({space.students.length})
+          כל התלמידות במרחב ({space.students.length})
         </h2>
-        <ul className="divide-y divide-border rounded-xl border border-border bg-surface" role="list">
-          {space.students.map((student) => (
-            <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <span className="font-medium">{student.name}</span>
-              <a
-                href={`tel:${student.phone.replaceAll("-", "")}`}
-                dir="ltr"
-                className="text-brand-strong underline underline-offset-4"
-              >
-                {student.phone}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-xl border border-border bg-surface px-4 py-1">
+          <StudentList students={space.students} />
+        </div>
       </section>
     </>
+  );
+}
+
+function PrivateSpaceView({ space }: { space: PrivateSpace }) {
+  return (
+    <section aria-labelledby="students-heading">
+      <h2 id="students-heading" className="mb-3 text-xl font-semibold">
+        תלמידות ({space.students.length})
+      </h2>
+      <div className="rounded-xl border border-border bg-surface px-4 py-1">
+        <StudentList students={space.students} />
+      </div>
+    </section>
   );
 }
