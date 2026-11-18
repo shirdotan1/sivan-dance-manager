@@ -325,6 +325,34 @@
     }
   }
 
+  /* Home hero logo. The source image (1198×896) has wide white margins
+     around the drawing; the frame shows only the area x 195–1065,
+     y 270–670 (870×400) by oversizing and offsetting the image. The frame
+     stays white in both themes, so in dark mode it reads as a white card. */
+  .hero-logo {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 870 / 400;
+    inline-size: min(100%, 26rem);
+    margin-inline: auto;
+    background: #ffffff;
+    border-radius: 1rem;
+
+    & img {
+      position: absolute;
+      /* Physical offsets on purpose: they are image coordinates, not text direction. */
+      left: calc(-195 / 870 * 100%);
+      top: calc(-270 / 400 * 100%);
+      width: calc(1198 / 870 * 100%);
+      max-inline-size: none;
+      height: auto;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      box-shadow: var(--shadow-card);
+    }
+  }
+
   @media (forced-colors: active) {
     .btn {
       border-color: ButtonText;
