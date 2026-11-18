@@ -31,7 +31,8 @@
   --success-soft: #e6f3ea;
   --danger: #a1281f;
   --danger-soft: #fbe9e6;
-  --focus: #1a5fd0;
+  /* Keyboard focus ring in the main accent: ≈9:1 on ivory/white. */
+  --focus: #7a2348;
   --shadow-card: 0 1px 2px rgb(46 26 42 / 0.05), 0 8px 24px -8px rgb(46 26 42 / 0.12);
   --shadow-card-hover: 0 2px 4px rgb(46 26 42 / 0.06), 0 14px 32px -10px rgb(46 26 42 / 0.18);
   --radius-card: 1.25rem;
@@ -57,7 +58,7 @@
     --success-soft: #17301f;
     --danger: #f3a097;
     --danger-soft: #3c1814;
-    --focus: #8ab4ff;
+    --focus: #e9a6c4; /* ≈9:1 on the dark background */
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.45);
     --shadow-card-hover: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px -10px rgb(0 0 0 / 0.55);
   }
@@ -198,7 +199,7 @@
     accent-color: var(--switch-on);
   }
 
-  :where(a:any-link, button, input, textarea, select, summary):focus-visible {
+  :where(a:any-link, button, input, textarea, select, summary, [tabindex]):focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 3px;
   }
