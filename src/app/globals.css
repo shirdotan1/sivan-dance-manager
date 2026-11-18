@@ -311,6 +311,16 @@
     font-size: 0.875rem;
   }
 
+  /* Guiding sentence shown instead of an empty list. */
+  .empty-state {
+    border: 1.5px dashed var(--border);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    color: var(--muted);
+    text-align: center;
+    text-wrap: balance;
+  }
+
   /* Disclosure panels (add-song forms). */
   .disclosure {
     border: 1px solid var(--border);

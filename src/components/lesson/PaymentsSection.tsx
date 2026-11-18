@@ -41,7 +41,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
       </div>
 
       {payments.length === 0 ? (
-        <p className="text-muted">אין משתתפות במפגש הזה.</p>
+        <p className="empty-state">אין משתתפות במפגש הזה.</p>
       ) : (
         <ul className="divider-list" role="list">
           {payments.map((payment) => {

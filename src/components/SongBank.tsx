@@ -50,6 +50,13 @@ export function SongBank() {
           : `נמצאו ${visible.length} מתוך ${songs.length} שירים`}
       </p>
 
+      {visible.length === 0 && (
+        <p className="empty-state">
+          לא נמצאו שירים עבור ״<bdi>{query.trim()}</bdi>״. אפשר לנסות מילה אחרת, או להוסיף את השיר לבנק בטופס
+          שלמעלה.
+        </p>
+      )}
+
       {visible.length > 0 && (
         <ul className="grid gap-4" role="list">
           {visible.map((song) => (

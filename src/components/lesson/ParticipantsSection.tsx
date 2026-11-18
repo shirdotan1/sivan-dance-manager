@@ -82,7 +82,7 @@ export function ParticipantsSection({ pool, groups = [], participantIds, onChang
       </h2>
 
       {participantIds.length === 0 ? (
-        <p className="mb-4 text-muted">עדיין אין משתתפות. אפשר להכניס קבוצה או להוסיף תלמידה.</p>
+        <p className="empty-state mb-5">עדיין אין משתתפות. אפשר להכניס קבוצה, לבחור תלמידה מהמאגר או להקליד תלמידה חדשה.</p>
       ) : (
         <ul className="divider-list mb-5" role="list">
           {participantIds.map((sid) => (

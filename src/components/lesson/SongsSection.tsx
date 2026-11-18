@@ -49,7 +49,7 @@ export function SongsSection({ initialSongIds, heading, addedTo }: SongsSectionP
       </h2>
 
       {selected.length === 0 ? (
-        <p className="mb-4 text-muted">עדיין לא נבחרו שירים.</p>
+        <p className="empty-state mb-5">עדיין לא נבחרו שירים. אפשר לבחור מהמאגר או להוסיף שיר חדש.</p>
       ) : (
         <ul className="divider-list mb-5" role="list">
           {selected.map((song) => (
