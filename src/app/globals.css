@@ -88,8 +88,8 @@
    still override them where needed. */
 @layer base {
   html {
-    /* Keep focused elements clear of the sticky header. */
-    scroll-padding-block-start: 6rem;
+    /* Keep focused elements clear of the sticky header (incl. its safe-area padding). */
+    scroll-padding-block-start: calc(6rem + env(safe-area-inset-top, 0px));
   }
 
   body {
@@ -406,6 +406,25 @@
       border-color: ButtonText;
     }
   }
+}
+
+/* ---------- Safe areas (notches, home indicator) ----------
+   With viewport-fit=cover the page draws under system UI, so edge-anchored
+   UI pads itself by the insets. Physical left/right on purpose: the insets
+   are physical, not text-direction based. */
+.safe-header {
+  padding-top: env(safe-area-inset-top, 0px);
+
+  & > div {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.safe-page {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(2.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
 }
 
 /* Polyfilled switch: replace the light-grey "off" track (too faint behind
