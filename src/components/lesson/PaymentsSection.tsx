@@ -3,16 +3,24 @@
 import { useId, useState } from "react";
 import { SwitchInput } from "@/components/SwitchInput";
 import { formatCurrency, type Payment, type Student } from "@/data/demo";
+import { sectionClass } from "@/components/lesson/styles";
 
 interface PaymentsSectionProps {
+  /** The space's student pool (for names). */
   students: Student[];
+  /** One payment row per participant. */
+  participantIds: string[];
   initial: Payment[];
 }
 
-/** Payments for a private lesson: amount + paid switch per student (in memory only). */
-export function PaymentsSection({ students, initial }: PaymentsSectionProps) {
+/** Session payments: amount + paid switch per participant, with a summary (in memory only). */
+export function PaymentsSection({ students, participantIds, initial }: PaymentsSectionProps) {
   const baseId = useId();
-  const [payments, setPayments] = useState(initial);
+  const [payments, setPayments] = useState<Payment[]>(() =>
+    participantIds.map(
+      (studentId) => initial.find((p) => p.studentId === studentId) ?? { studentId, amount: 0, paid: false },
+    ),
+  );
 
   const update = (studentId: string, patch: Partial<Payment>) =>
     setPayments((prev) => prev.map((p) => (p.studentId === studentId ? { ...p, ...patch } : p)));
@@ -22,12 +30,9 @@ export function PaymentsSection({ students, initial }: PaymentsSectionProps) {
   const nameOf = (id: string) => students.find((s) => s.id === id)?.name ?? "תלמידה";
 
   return (
-    <section
-      aria-labelledby={`${baseId}-heading`}
-      className="mb-8 rounded-xl border border-border bg-surface p-4 sm:p-5"
-    >
+    <section aria-labelledby={`${baseId}-heading`} className={sectionClass}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${baseId}-heading`} className="text-xl font-semibold">
+        <h2 id={`${baseId}-heading`}>
           תשלומים
         </h2>
         <p className="text-sm text-muted">
@@ -36,9 +41,9 @@ export function PaymentsSection({ students, initial }: PaymentsSectionProps) {
       </div>
 
       {payments.length === 0 ? (
-        <p className="text-muted">אין תשלומים לשיעור הזה.</p>
+        <p className="text-muted">אין משתתפות במפגש הזה.</p>
       ) : (
-        <ul className="divide-y divide-border" role="list">
+        <ul className="divider-list" role="list">
           {payments.map((payment) => {
             const name = nameOf(payment.studentId);
             const amountId = `${baseId}-${payment.studentId}-amount`;

@@ -1,7 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatDate, getLessonsForSpace, getSpace, spaces } from "@/data/demo";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { SongTitle } from "@/components/SongText";
+import { StudentList } from "@/components/StudentList";
+import {
+  formatCurrency,
+  formatDate,
+  getLessonsForSpace,
+  getSong,
+  getSpace,
+  getStudents,
+  projectTypeLabel,
+  projects,
+  spaces,
+  type PrivateSpace,
+  type StudioSpace,
+} from "@/data/demo";
 
 export function generateStaticParams() {
   return spaces.map((space) => ({ spaceId: space.id }));
@@ -17,39 +32,59 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
   const space = getSpace(spaceId);
   if (!space) notFound();
 
+  return (
+    <>
+      <Breadcrumbs items={[{ label: space.name }]} />
+      <h1 className="mb-2">{space.name}</h1>
+      <p className="mb-6 text-muted">{space.description}</p>
+
+      {space.kind === "studio" ? <StudioSpaceView space={space} /> : <PrivateSpaceView space={space} />}
+    </>
+  );
+}
+
+function StudioSpaceView({ space }: { space: StudioSpace }) {
   const spaceLessons = getLessonsForSpace(space.id);
 
   return (
     <>
-      <nav aria-label="פירורי לחם" className="mb-2 text-sm">
-        <ol className="flex flex-wrap gap-1 text-muted">
-          <li>
-            <Link href="/" className="underline underline-offset-4">
-              המרחבים שלי
-            </Link>
-            <span aria-hidden="true"> ‹ </span>
-          </li>
-          <li aria-current="page">{space.name}</li>
-        </ol>
-      </nav>
+      <section aria-labelledby="groups-heading" className="mb-10">
+        <h2 id="groups-heading" className="mb-3">
+          קבוצות ({space.groups.length})
+        </h2>
+        <ul className="grid gap-4 sm:grid-cols-2" role="list">
+          {space.groups.map((group) => {
+            const members = getStudents(space, group.studentIds);
+            return (
+              <li key={group.id} className="card">
+                <h3>{group.name}</h3>
+                <p className="mb-2 text-sm text-muted">{members.length} תלמידות</p>
+                <ul className="flex flex-wrap gap-1.5" role="list">
+                  {members.map((m) => (
+                    <li key={m.id} className="chip">
+                      {m.name}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-      <h1 className="text-2xl font-bold">{space.name}</h1>
-      <p className="mb-6 text-muted">{space.description}</p>
-
-      <section aria-labelledby="lessons-heading" className="mb-8">
-        <h2 id="lessons-heading" className="mb-3 text-xl font-semibold">
+      <section aria-labelledby="lessons-heading" className="mb-10">
+        <h2 id="lessons-heading" className="mb-3">
           שיעורים
         </h2>
-
         {spaceLessons.length === 0 ? (
           <p>עדיין אין שיעורים במרחב הזה.</p>
         ) : (
-          <ul className="grid gap-3" role="list">
+          <ul className="grid gap-4" role="list">
             {spaceLessons.map((lesson) => (
               <li key={lesson.id}>
                 <Link
                   href={`/spaces/${space.id}/lessons/${lesson.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-brand hover:bg-brand-soft"
+                  className="card card-link flex flex-wrap items-center justify-between gap-2"
                 >
                   <span>
                     <span className="block font-semibold">{formatDate(lesson.date)}</span>
@@ -58,7 +93,7 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
                     </span>
                   </span>
                   <span className="text-sm">
-                    {lesson.attendance.length}/{space.students.length} נוכחות · {lesson.songIds.length} שירים
+                    {lesson.participantIds.length} משתתפות · {lesson.songIds.length} שירים
                   </span>
                 </Link>
               </li>
@@ -68,23 +103,68 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
       </section>
 
       <section aria-labelledby="students-heading">
-        <h2 id="students-heading" className="mb-3 text-xl font-semibold">
-          מאגר תלמידות ({space.students.length})
+        <h2 id="students-heading" className="mb-3">
+          כל התלמידות במרחב ({space.students.length})
         </h2>
-        <ul className="divide-y divide-border rounded-xl border border-border bg-surface" role="list">
-          {space.students.map((student) => (
-            <li key={student.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <span className="font-medium">{student.name}</span>
-              <a
-                href={`tel:${student.phone.replaceAll("-", "")}`}
-                dir="ltr"
-                className="text-brand-strong underline underline-offset-4"
-              >
-                {student.phone}
-              </a>
-            </li>
-          ))}
+        <div className="card py-2">
+          <StudentList students={space.students} />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PrivateSpaceView({ space }: { space: PrivateSpace }) {
+  return (
+    <>
+      <section aria-labelledby="projects-heading" className="mb-10">
+        <h2 id="projects-heading" className="mb-3">
+          פרויקטים ({projects.length})
+        </h2>
+        <ul className="grid gap-4 sm:grid-cols-2" role="list">
+          {projects.map((project) => {
+            const mainSong = getSong(project.mainSongId);
+            const participants = getStudents(space, project.participantIds);
+            const unpaid = project.sessions
+              .flatMap((s) => s.payments)
+              .filter((p) => !p.paid)
+              .reduce((sum, p) => sum + p.amount, 0);
+            return (
+              <li key={project.id}>
+                <Link
+                  href={`/spaces/${space.id}/projects/${project.id}`}
+                  className="card card-link h-full"
+                >
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-lg font-semibold">{project.name}</span>
+                    <span className="chip">
+                      {projectTypeLabel[project.type]}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-sm">{participants.map((p) => p.name).join(", ")}</span>
+                  {mainSong && (
+                    <span className="mt-1 block text-sm text-muted">
+                      שיר ראשי: <SongTitle song={mainSong} />
+                    </span>
+                  )}
+                  <span className="mt-2 block text-sm">
+                    {project.sessions.length} מפגשים
+                    {unpaid > 0 && ` · ${formatCurrency(unpaid)} טרם שולמו`}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
+      </section>
+
+      <section aria-labelledby="students-heading">
+        <h2 id="students-heading" className="mb-3">
+          תלמידות ({space.students.length})
+        </h2>
+        <div className="card py-2">
+          <StudentList students={space.students} />
+        </div>
       </section>
     </>
   );

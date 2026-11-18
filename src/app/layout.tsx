@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SongBankProvider } from "@/components/songs/SongBankProvider";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -13,12 +14,14 @@ export const metadata: Metadata = {
     template: "%s | השיעורים של סיון",
     default: "השיעורים של סיון",
   },
-  description: "ניהול שיעורי ריקוד: תלמידות, נוכחות, שירים ותשלומים",
+  description: "ניהול שיעורי ריקוד: קבוצות, משתתפות, פרויקטים, שירים ותשלומים",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // <meta name="color-scheme"> so the browser paints the right canvas before CSS loads.
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -26,9 +29,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <SiteHeader />
-        <main id="content" className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-          {children}
-        </main>
+        <SongBankProvider>
+          <main id="content" className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
+            {children}
+          </main>
+        </SongBankProvider>
       </body>
     </html>
   );

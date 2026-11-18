@@ -12,12 +12,12 @@ export function SiteHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-surface/95 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur-md">
       <a href="#content" className="skip-link visually-hidden">
         דילוג לתוכן הראשי
       </a>
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2">
-        <Link href="/" className="text-lg font-bold text-brand-strong no-underline">
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
+        <Link href="/" className="text-lg font-extrabold tracking-wide text-foreground no-underline">
           השיעורים של סיון
         </Link>
         <nav aria-label="ראשי">
@@ -30,7 +30,7 @@ export function SiteHeader() {
                   <Link
                     href={href}
                     aria-current={current ? "page" : undefined}
-                    className="inline-flex items-center rounded-md px-3 py-1 font-medium text-foreground underline-offset-4 hover:bg-brand-soft aria-[current=page]:bg-brand-soft aria-[current=page]:text-brand-strong aria-[current=page]:underline aria-[current=page]:decoration-2"
+                    className="relative inline-flex items-center rounded-full px-4 font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand-strong aria-[current=page]:font-bold aria-[current=page]:text-brand-strong aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-4 aria-[current=page]:after:bottom-1.5 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-coral"
                   >
                     {label}
                   </Link>
