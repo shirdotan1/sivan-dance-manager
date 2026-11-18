@@ -30,7 +30,7 @@ export function SiteHeader() {
                   <Link
                     href={href}
                     aria-current={current ? "page" : undefined}
-                    className="relative inline-flex items-center rounded-full px-4 font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand-strong aria-[current=page]:font-bold aria-[current=page]:text-brand-strong aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-4 aria-[current=page]:after:bottom-1.5 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-coral"
+                    className="relative inline-flex items-center rounded-full px-4 font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand-strong active:bg-brand-soft aria-[current=page]:font-bold aria-[current=page]:text-brand-strong aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-4 aria-[current=page]:after:bottom-1.5 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-coral"
                   >
                     {label}
                   </Link>

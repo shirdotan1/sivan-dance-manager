@@ -239,9 +239,20 @@
       border-color: var(--coral);
     }
 
+    /* Press feedback (touch): settle back down with a softer shadow and tinted fill. */
+    &:active {
+      background: var(--brand-soft);
+      box-shadow: var(--shadow-card);
+    }
+
     @media (prefers-reduced-motion: no-preference) {
       &:hover {
         translate: 0 -2px;
+      }
+
+      &:active {
+        translate: 0;
+        scale: 0.99;
       }
     }
   }
@@ -271,7 +282,14 @@
     transition:
       background-color 0.15s ease,
       box-shadow 0.15s ease,
-      color 0.15s ease;
+      color 0.15s ease,
+      scale 0.15s ease;
+
+    @media (prefers-reduced-motion: no-preference) {
+      &:active {
+        scale: 0.97;
+      }
+    }
   }
 
   /* Primary: burgundy fill, coral underline accent that grows on hover. */
@@ -284,6 +302,11 @@
       background: var(--brand-strong);
       box-shadow: inset 0 -5px 0 var(--coral);
     }
+
+    &:active {
+      background: var(--brand-strong);
+      box-shadow: inset 0 -2px 0 var(--coral);
+    }
   }
 
   /* Secondary: outline only. */
@@ -294,6 +317,10 @@
 
     &:hover {
       background: var(--brand-soft);
+    }
+
+    &:active {
+      background: color-mix(in oklab, var(--brand-soft), var(--brand) 18%);
     }
   }
 
@@ -332,6 +359,11 @@
       font-weight: 600;
       color: var(--brand-strong);
       cursor: pointer;
+      border-radius: 1rem;
+
+      &:active {
+        background: var(--brand-soft);
+      }
     }
 
     &[open] > summary {
