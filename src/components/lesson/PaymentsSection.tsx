@@ -43,7 +43,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
       {payments.length === 0 ? (
         <p className="text-muted">אין משתתפות במפגש הזה.</p>
       ) : (
-        <ul className="divide-y divide-border" role="list">
+        <ul className="divider-list" role="list">
           {payments.map((payment) => {
             const name = nameOf(payment.studentId);
             const amountId = `${baseId}-${payment.studentId}-amount`;

@@ -48,20 +48,20 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
 
   return (
     <>
-      <section aria-labelledby="groups-heading" className="mb-8">
+      <section aria-labelledby="groups-heading" className="mb-10">
         <h2 id="groups-heading" className="mb-3">
           קבוצות ({space.groups.length})
         </h2>
-        <ul className="grid gap-3 sm:grid-cols-2" role="list">
+        <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {space.groups.map((group) => {
             const members = getStudents(space, group.studentIds);
             return (
-              <li key={group.id} className="rounded-xl border border-border bg-surface p-4">
+              <li key={group.id} className="card">
                 <h3>{group.name}</h3>
                 <p className="mb-2 text-sm text-muted">{members.length} תלמידות</p>
                 <ul className="flex flex-wrap gap-1.5" role="list">
                   {members.map((m) => (
-                    <li key={m.id} className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm">
+                    <li key={m.id} className="chip">
                       {m.name}
                     </li>
                   ))}
@@ -72,19 +72,19 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
         </ul>
       </section>
 
-      <section aria-labelledby="lessons-heading" className="mb-8">
+      <section aria-labelledby="lessons-heading" className="mb-10">
         <h2 id="lessons-heading" className="mb-3">
           שיעורים
         </h2>
         {spaceLessons.length === 0 ? (
           <p>עדיין אין שיעורים במרחב הזה.</p>
         ) : (
-          <ul className="grid gap-3" role="list">
+          <ul className="grid gap-4" role="list">
             {spaceLessons.map((lesson) => (
               <li key={lesson.id}>
                 <Link
                   href={`/spaces/${space.id}/lessons/${lesson.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-brand hover:bg-brand-soft"
+                  className="card card-link flex flex-wrap items-center justify-between gap-2"
                 >
                   <span>
                     <span className="block font-semibold">{formatDate(lesson.date)}</span>
@@ -106,7 +106,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
         <h2 id="students-heading" className="mb-3">
           כל התלמידות במרחב ({space.students.length})
         </h2>
-        <div className="rounded-xl border border-border bg-surface px-4 py-1">
+        <div className="card py-2">
           <StudentList students={space.students} />
         </div>
       </section>
@@ -117,11 +117,11 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
 function PrivateSpaceView({ space }: { space: PrivateSpace }) {
   return (
     <>
-      <section aria-labelledby="projects-heading" className="mb-8">
+      <section aria-labelledby="projects-heading" className="mb-10">
         <h2 id="projects-heading" className="mb-3">
           פרויקטים ({projects.length})
         </h2>
-        <ul className="grid gap-3 sm:grid-cols-2" role="list">
+        <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {projects.map((project) => {
             const mainSong = getSong(project.mainSongId);
             const participants = getStudents(space, project.participantIds);
@@ -133,11 +133,11 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
               <li key={project.id}>
                 <Link
                   href={`/spaces/${space.id}/projects/${project.id}`}
-                  className="block h-full rounded-xl border border-border bg-surface p-4 hover:border-brand hover:bg-brand-soft"
+                  className="card card-link h-full"
                 >
                   <span className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-lg font-semibold">{project.name}</span>
-                    <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm text-brand-strong">
+                    <span className="chip">
                       {projectTypeLabel[project.type]}
                     </span>
                   </span>
@@ -162,7 +162,7 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
         <h2 id="students-heading" className="mb-3">
           תלמידות ({space.students.length})
         </h2>
-        <div className="rounded-xl border border-border bg-surface px-4 py-1">
+        <div className="card py-2">
           <StudentList students={space.students} />
         </div>
       </section>

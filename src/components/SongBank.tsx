@@ -51,11 +51,11 @@ export function SongBank() {
       </p>
 
       {visible.length > 0 && (
-        <ul className="grid gap-3" role="list">
+        <ul className="grid gap-4" role="list">
           {visible.map((song) => (
             <li
               key={song.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface p-4"
+              className="card flex flex-wrap items-start justify-between gap-3"
             >
               <div className="min-w-0 flex-1">
                 <h2>
@@ -68,13 +68,13 @@ export function SongBank() {
                 )}
                 {song.style && (
                   <p className="mt-1">
-                    <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm text-brand-strong">
+                    <span className="chip">
                       {song.style}
                     </span>
                   </p>
                 )}
                 {song.note && (
-                  <p className="mt-2 border-s-2 border-brand ps-3 text-sm">
+                  <p className="mt-3 border-s-2 border-coral ps-3 text-sm">
                     <span className="visually-hidden">הערה: </span>
                     <bdi>{song.note}</bdi>
                   </p>
@@ -84,7 +84,7 @@ export function SongBank() {
                 href={listenUrl(song)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 font-medium text-brand-strong hover:bg-brand-soft"
+                className="btn btn-secondary btn-compact"
               >
                 {song.link ? "האזנה" : "חיפוש ביוטיוב"}
                 <span className="visually-hidden">
@@ -108,8 +108,8 @@ function AddSongForm() {
   const [formKey, setFormKey] = useState(0);
 
   return (
-    <details className="mb-6 rounded-xl border border-border bg-surface">
-      <summary className="cursor-pointer px-4 py-3 font-semibold">+ הוספת שיר לבנק</summary>
+    <details className="disclosure mb-8">
+      <summary>+ הוספת שיר לבנק</summary>
       <form
         key={formKey}
         aria-label="הוספת שיר לבנק"
@@ -158,7 +158,7 @@ function AddSongForm() {
         <div>
           <button
             type="submit"
-            className="rounded-lg bg-brand px-4 py-2 font-semibold text-on-brand hover:bg-brand-strong"
+            className="btn btn-primary"
           >
             הוספה לבנק
           </button>

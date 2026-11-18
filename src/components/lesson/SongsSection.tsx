@@ -51,7 +51,7 @@ export function SongsSection({ initialSongIds, heading, addedTo }: SongsSectionP
       {selected.length === 0 ? (
         <p className="mb-4 text-muted">עדיין לא נבחרו שירים.</p>
       ) : (
-        <ul className="mb-4 divide-y divide-border" role="list">
+        <ul className="divider-list mb-5" role="list">
           {selected.map((song) => (
             <li key={song.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span className="min-w-0 flex-1">
@@ -119,12 +119,12 @@ export function SongsSection({ initialSongIds, heading, addedTo }: SongsSectionP
         </form>
       )}
 
-      <details className="rounded-lg border border-border">
-        <summary className="cursor-pointer px-3 py-2 font-medium">+ שיר חדש (לא מהמאגר)</summary>
+      <details className="disclosure">
+        <summary>+ שיר חדש (לא מהמאגר)</summary>
         <form
           key={newFormKey}
           aria-label="הוספת שיר חדש"
-          className="grid gap-3 px-3 pb-3"
+          className="grid gap-4 px-4 pb-4"
           // Any edit (name or link) clears the "name or link" requirement error.
           onInput={() => nameRef.current?.setCustomValidity("")}
           onSubmit={(e) => {

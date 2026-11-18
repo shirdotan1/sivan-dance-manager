@@ -45,7 +45,7 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
       <h1 className="mb-2">{project.name}</h1>
       <p className="mb-6 text-muted">פרויקט {projectTypeLabel[project.type]}</p>
 
-      <section aria-labelledby="details-heading" className="mb-8 rounded-xl border border-border bg-surface p-4 sm:p-5">
+      <section aria-labelledby="details-heading" className="card card-section">
         <h2 id="details-heading" className="mb-3">
           פרטי הפרויקט
         </h2>
@@ -91,7 +91,7 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
         <h2 id="sessions-heading" className="mb-3">
           מפגשים ({sessions.length})
         </h2>
-        <ul className="grid gap-3" role="list">
+        <ul className="grid gap-4" role="list">
           {sessions.map((session) => {
             const total = session.payments.reduce((sum, p) => sum + p.amount, 0);
             const paid = session.payments.filter((p) => p.paid).reduce((sum, p) => sum + p.amount, 0);
@@ -99,7 +99,7 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
               <li key={session.id}>
                 <Link
                   href={`/spaces/${space.id}/projects/${project.id}/sessions/${session.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface p-4 hover:border-brand hover:bg-brand-soft"
+                  className="card card-link flex flex-wrap items-center justify-between gap-2"
                 >
                   <span>
                     <span className="block font-semibold">{formatDate(session.date)}</span>

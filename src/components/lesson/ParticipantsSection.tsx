@@ -56,7 +56,7 @@ export function ParticipantsSection({ pool, groups = [], participantIds, onChang
       {participantIds.length === 0 ? (
         <p className="mb-4 text-muted">עדיין אין משתתפות. אפשר להכניס קבוצה או להוסיף תלמידה.</p>
       ) : (
-        <ul className="mb-4 divide-y divide-border" role="list">
+        <ul className="divider-list mb-5" role="list">
           {participantIds.map((sid) => (
             <li key={sid} className="flex items-center justify-between gap-2 py-1.5">
               <span className="font-medium">{nameOf(sid)}</span>

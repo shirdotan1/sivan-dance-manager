@@ -7,13 +7,13 @@ export default function HomePage() {
       <h1 className="mb-2">שלום סיון 👋</h1>
       <p className="mb-6 text-muted">לאן נכנסים היום?</p>
 
-      <ul className="grid gap-4 sm:grid-cols-2" role="list">
+      <ul className="grid gap-5 sm:grid-cols-2" role="list">
         {spaces.map((space) => {
           return (
             <li key={space.id}>
               <Link
                 href={`/spaces/${space.id}`}
-                className="block h-full rounded-xl border border-border bg-surface p-5 shadow-sm transition-colors hover:border-brand hover:bg-brand-soft"
+                className="card card-link h-full"
               >
                 <h2 className="text-brand-strong">{space.name}</h2>
                 <p className="mt-1 text-muted">{space.description}</p>
