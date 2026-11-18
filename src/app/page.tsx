@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLessonsForSpace, spaces } from "@/data/demo";
+import { getLessonsForSpace, projects, spaces } from "@/data/demo";
 
 export default function HomePage() {
   return (
@@ -9,7 +9,6 @@ export default function HomePage() {
 
       <ul className="grid gap-4 sm:grid-cols-2" role="list">
         {spaces.map((space) => {
-          const lessonCount = getLessonsForSpace(space.id).length;
           return (
             <li key={space.id}>
               <Link
@@ -19,8 +18,10 @@ export default function HomePage() {
                 <h2 className="text-xl font-semibold text-brand-strong">{space.name}</h2>
                 <p className="mt-1 text-muted">{space.description}</p>
                 <p className="mt-3 text-sm">
-                  {space.students.length} תלמידות · {lessonCount} שיעורים
-                  {space.kind === "private" && " · כולל מעקב תשלומים"}
+                  {space.students.length} תלמידות ·{" "}
+                  {space.kind === "studio"
+                    ? `${space.groups.length} קבוצות · ${getLessonsForSpace(space.id).length} שיעורים`
+                    : `${projects.length} פרויקטים · כולל מעקב תשלומים`}
                 </p>
               </Link>
             </li>
