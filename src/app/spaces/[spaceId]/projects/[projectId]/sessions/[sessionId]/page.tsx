@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteSessionButton } from "@/components/DeleteSessionButton";
+import { PrevNext } from "@/components/PrevNext";
 import { PaymentsQuick } from "@/components/PaymentsQuick";
 import { MediaView, NotesView, SongsView } from "@/components/view/EventView";
 import { getProject, getSongs, getSpace } from "@/lib/data/queries";
@@ -27,6 +28,11 @@ export default async function SessionPage({ params, searchParams }: Props) {
   if (!space || space.kind !== "private" || !project || !session) notFound();
 
   const participants = studentsByIds(space.students, project.participantIds);
+  // project.sessions is newest first.
+  const idx = project.sessions.findIndex((s) => s.id === session.id);
+  const later = idx > 0 ? project.sessions[idx - 1] : undefined;
+  const earlier = project.sessions[idx + 1];
+  const href = (id: string) => `/spaces/${space.id}/projects/${project.id}/sessions/${id}`;
 
   return (
     <>
@@ -51,6 +57,12 @@ export default async function SessionPage({ params, searchParams }: Props) {
           ✓ המפגש נשמר.
         </p>
       )}
+
+      <PrevNext
+        noun="מפגשי הפרויקט"
+        prev={earlier && { href: href(earlier.id), date: earlier.date }}
+        next={later && { href: href(later.id), date: later.date }}
+      />
 
       <PaymentsQuick sessionId={session.id} payments={session.payments} students={space.students} />
       <SongsView songs={songsByIds(bank, session.songIds)} title="שירים במפגש" />

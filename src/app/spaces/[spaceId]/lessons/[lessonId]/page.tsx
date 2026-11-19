@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteLessonButton } from "@/components/DeleteLessonButton";
+import { PrevNext } from "@/components/PrevNext";
 import { MediaView, NotesView, ParticipantsView, SongsView } from "@/components/view/EventView";
-import { getLesson, getSongs, getSpace } from "@/lib/data/queries";
+import { getLesson, getLessonsForSpace, getSongs, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
 import { songsByIds, studentsByIds } from "@/lib/lookup";
 
@@ -20,8 +21,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function LessonPage({ params, searchParams }: Props) {
   const { spaceId, lessonId } = await params;
   const { saved } = await searchParams;
-  const [space, lesson, bank] = await Promise.all([getSpace(spaceId), getLesson(spaceId, lessonId), getSongs()]);
+  const [space, lesson, bank, all] = await Promise.all([
+    getSpace(spaceId),
+    getLesson(spaceId, lessonId),
+    getSongs(),
+    getLessonsForSpace(spaceId),
+  ]);
   if (!space || space.kind !== "studio" || !lesson) notFound();
+  // `all` is newest first: the next (later) lesson is before this one.
+  const idx = all.findIndex((l) => l.id === lesson.id);
+  const later = idx > 0 ? all[idx - 1] : undefined;
+  const earlier = idx >= 0 ? all[idx + 1] : undefined;
+  const href = (id: string) => `/spaces/${space.id}/lessons/${id}`;
 
   const group = space.groups.find((g) => g.id === lesson.groupId);
   const base = `/spaces/${space.id}/lessons/${lesson.id}`;
@@ -48,6 +59,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
         </p>
       )}
 
+      <PrevNext
+        noun="שיעורי המרחב"
+        prev={earlier && { href: href(earlier.id), date: earlier.date }}
+        next={later && { href: href(later.id), date: later.date }}
+      />
+
       <ParticipantsView students={studentsByIds(space.students, lesson.participantIds)} />
       <SongsView songs={songsByIds(bank, lesson.songIds)} title="שירים בשיעור" />
       <NotesView notes={lesson.notes} />
@@ -58,9 +75,14 @@ export default async function LessonPage({ params, searchParams }: Props) {
       </div>
 
       <div className="action-bar">
-        <Link href={`${base}/edit`} className="btn btn-primary w-full sm:w-auto">
-          עריכת השיעור
-        </Link>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Link href={`/spaces/${space.id}/lessons/new?from=${lesson.id}`} className="btn btn-secondary">
+            צרי את השיעור הבא מזה
+          </Link>
+          <Link href={`${base}/edit`} className="btn btn-primary">
+            עריכת השיעור
+          </Link>
+        </div>
       </div>
     </>
   );
