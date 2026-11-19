@@ -28,6 +28,19 @@ export default function HomePage() {
       <Suspense fallback={<SpaceCardsSkeleton />}>
         <SpaceCards />
       </Suspense>
+
+      <section aria-labelledby="backup-heading" className="card mt-10 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="backup-heading" className="mb-1">
+            גיבוי
+          </h2>
+          <p className="text-sm text-muted">כל הנתונים — תלמידות, שיעורים, פרויקטים, תשלומים ושירים — בקובץ JSON אחד.</p>
+        </div>
+        {/* A plain link: the route answers with a file download. */}
+        <a href="/export" download className="btn btn-secondary">
+          ייצוא כל הנתונים
+        </a>
+      </section>
     </>
   );
 }
