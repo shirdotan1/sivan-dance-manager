@@ -1,6 +1,7 @@
 import "server-only";
 import { requireUser } from "@/lib/supabase/server";
 import { shortTime } from "@/lib/format";
+import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
   DanceProject,
   Group,
@@ -228,4 +229,85 @@ export async function getSong(id: string | undefined): Promise<Song | undefined>
 /** URL segments are user input: reject non-UUIDs before they reach Postgres. */
 export function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+// ---------- Calendar ----------
+
+export interface CalendarEvent {
+  id: string;
+  kind: "lesson" | "session";
+  date: string;
+  time: string;
+  /** Group / project name (or the space name for a lesson without a group). */
+  label: string;
+  /** Where it happens: space name (lessons) or "שיעורים פרטיים" (sessions). */
+  context: string;
+  color: string;
+  href: string;
+}
+
+export interface LegendItem {
+  id: string;
+  name: string;
+  color: string;
+  context: string;
+}
+
+/** Lessons and sessions between two dates (inclusive), sorted by date and time. */
+export async function getCalendarEvents(first: string, last: string): Promise<CalendarEvent[]> {
+  const { supabase } = await requireUser();
+  const [lessons, sessions, spaces] = await Promise.all([
+    supabase.from("lessons").select("id, space_id, date, time, groups(name, color)").gte("date", first).lte("date", last),
+    supabase.from("sessions").select("id, date, time, projects(id, name, color)").gte("date", first).lte("date", last),
+    supabase.from("spaces").select("id, name"),
+  ]);
+  if (lessons.error) fail("calendar lessons", lessons.error);
+  if (sessions.error) fail("calendar sessions", sessions.error);
+  const spaceName = new Map((spaces.data ?? []).map((s) => [s.id as string, s.name as string]));
+
+  type LessonRow = { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null };
+  type SessionRow = { id: string; date: string; time: string; projects: { id: string; name: string; color: string } | null };
+
+  const events: CalendarEvent[] = [
+    ...(lessons.data as unknown as LessonRow[]).map((l) => ({
+      id: l.id,
+      kind: "lesson" as const,
+      date: l.date,
+      time: shortTime(l.time),
+      label: l.groups?.name ?? spaceName.get(l.space_id) ?? "שיעור",
+      context: spaceName.get(l.space_id) ?? "",
+      color: l.groups?.color ?? NEUTRAL_COLOR,
+      href: `/spaces/${l.space_id}/lessons/${l.id}`,
+    })),
+    ...(sessions.data as unknown as SessionRow[])
+      .filter((s) => s.projects)
+      .map((s) => ({
+        id: s.id,
+        kind: "session" as const,
+        date: s.date,
+        time: shortTime(s.time),
+        label: s.projects!.name,
+        context: spaceName.get("private-lessons") ?? "שיעורים פרטיים",
+        color: s.projects!.color,
+        href: `/spaces/private-lessons/projects/${s.projects!.id}/sessions/${s.id}`,
+      })),
+  ];
+  return events.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : a.date + a.time > b.date + b.time ? 1 : 0));
+}
+
+/** Color legend: every group (studio spaces) and project, with where it belongs. */
+export async function getCalendarLegend(): Promise<LegendItem[]> {
+  const { supabase } = await requireUser();
+  const [groups, projects, spaces] = await Promise.all([
+    supabase.from("groups").select("id, name, color, space_id, created_at").order("created_at"),
+    supabase.from("projects").select("id, name, color, created_at").order("created_at"),
+    supabase.from("spaces").select("id, name"),
+  ]);
+  if (groups.error) fail("legend groups", groups.error);
+  if (projects.error) fail("legend projects", projects.error);
+  const spaceName = new Map((spaces.data ?? []).map((s) => [s.id as string, s.name as string]));
+  return [
+    ...(groups.data ?? []).map((g) => ({ id: g.id, name: g.name, color: g.color, context: spaceName.get(g.space_id) ?? "" })),
+    ...(projects.data ?? []).map((p) => ({ id: p.id, name: p.name, color: p.color, context: spaceName.get("private-lessons") ?? "" })),
+  ];
 }

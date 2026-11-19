@@ -6,6 +6,7 @@ import { signOut } from "@/app/login/actions";
 
 const links = [
   { href: "/", label: "המרחבים שלי" },
+  { href: "/calendar", label: "לוח שנה" },
   { href: "/songs", label: "בנק שירים" },
 ] as const;
 
@@ -33,7 +34,7 @@ export function SiteHeader() {
                   <Link
                     href={href}
                     aria-current={current ? "page" : undefined}
-                    className="relative inline-flex items-center rounded-full px-4 font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand-strong active:bg-brand-soft aria-[current=page]:font-bold aria-[current=page]:text-brand-strong aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-4 aria-[current=page]:after:bottom-1.5 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-coral"
+                    className="relative inline-flex items-center rounded-full px-2.5 sm:px-4 font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand-strong active:bg-brand-soft aria-[current=page]:font-bold aria-[current=page]:text-brand-strong aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-2.5 sm:aria-[current=page]:after:inset-x-4 aria-[current=page]:after:bottom-1.5 aria-[current=page]:after:h-[3px] aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-coral"
                   >
                     {label}
                   </Link>
@@ -44,7 +45,7 @@ export function SiteHeader() {
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="inline-flex items-center rounded-full px-4 font-medium text-muted hover:bg-brand-soft hover:text-brand-strong active:bg-brand-soft"
+                  className="inline-flex items-center rounded-full px-2.5 sm:px-4 font-medium text-muted hover:bg-brand-soft hover:text-brand-strong active:bg-brand-soft"
                 >
                   יציאה
                 </button>
