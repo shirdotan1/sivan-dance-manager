@@ -17,13 +17,16 @@ import type {
 /*
  * Read side of the Data Access Layer. Every function verifies the user
  * (requireUser) and maps database rows to the app's domain types.
- * Ordering: students by name, groups by name, lessons/sessions by date.
+ * Ordering: pools/groups/songs/projects by creation time; participants and
+ * payments in pool order; lessons and sessions newest first.
  */
 
 // ---------- Row shapes (only the columns we select) ----------
 
-interface StudentRow { id: string; name: string; phone: string; archived_at: string | null }
-interface GroupRow { id: string; name: string; color: string; group_members: { student_id: string }[] }
+/** A link row to a student, with the student's creation time for pool ordering. */
+interface StudentRef { student_id: string; students: { created_at: string } | null }
+interface StudentRow { id: string; name: string; phone: string; archived_at: string | null; created_at: string }
+interface GroupRow { id: string; name: string; color: string; created_at: string; group_members: StudentRef[] }
 interface SpaceRow {
   id: string; name: string; kind: "studio" | "private"; description: string;
   students: StudentRow[]; groups: GroupRow[];
@@ -32,16 +35,16 @@ interface MediaRow { id: string; kind: "photo" | "video"; caption: string; posit
 interface SongLinkRow { song_id: string; position: number }
 interface LessonRow {
   id: string; space_id: string; group_id: string | null; date: string; time: string; notes: string;
-  lesson_participants: { student_id: string }[]; lesson_songs: SongLinkRow[]; media_items: MediaRow[];
+  lesson_participants: StudentRef[]; lesson_songs: SongLinkRow[]; media_items: MediaRow[];
 }
 interface SessionRow {
   id: string; date: string; time: string; notes: string;
-  session_payments: { student_id: string; amount: number; paid: boolean }[];
+  session_payments: (StudentRef & { amount: number; paid: boolean })[];
   session_songs: SongLinkRow[]; media_items: MediaRow[];
 }
 interface ProjectRow {
   id: string; name: string; type: "solo" | "group"; color: string; main_song_id: string | null;
-  project_participants: { student_id: string }[]; sessions: SessionRow[];
+  project_participants: StudentRef[]; sessions: SessionRow[];
 }
 interface SongRow {
   id: string; title: string; artist: string; style: string; link: string | null; note: string | null;
@@ -50,18 +53,23 @@ interface SongRow {
 
 // ---------- Selects ----------
 
-const SPACE_SELECT =
-  "id, name, kind, description, students(id, name, phone, archived_at), groups(id, name, color, group_members(student_id))";
-const LESSON_SELECT =
-  "id, space_id, group_id, date, time, notes, lesson_participants(student_id), lesson_songs(song_id, position), media_items(id, kind, caption, position)";
-const SESSION_SELECT =
-  "id, date, time, notes, session_payments(student_id, amount, paid), session_songs(song_id, position), media_items(id, kind, caption, position)";
-const PROJECT_SELECT = `id, name, type, color, main_song_id, project_participants(student_id), sessions(${SESSION_SELECT})`;
+const STUDENT_REF = "student_id, students(created_at)";
+const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, archived_at, created_at), groups(id, name, color, created_at, group_members(${STUDENT_REF}))`;
+const LESSON_SELECT = `id, space_id, group_id, date, time, notes, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
+const SESSION_SELECT = `id, date, time, notes, session_payments(${STUDENT_REF}, amount, paid), session_songs(song_id, position), media_items(id, kind, caption, position)`;
+const PROJECT_SELECT = `id, name, type, color, main_song_id, created_at, project_participants(${STUDENT_REF}), sessions(${SESSION_SELECT})`;
 const SONG_SELECT = "id, title, artist, style, link, note, title_lang, artist_lang";
 
 // ---------- Mappers ----------
 
-const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, "he");
+/** Pools, groups, songs and projects keep their creation order (new ones last). */
+const byCreated = (a: { created_at: string }, b: { created_at: string }) =>
+  a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+/** Participants and payments follow the pool's order. */
+function inPoolOrder<T extends StudentRef>(refs: T[]): T[] {
+  const key = (r: StudentRef) => r.students?.created_at ?? "";
+  return [...refs].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+}
 const byPosition = (a: { position: number }, b: { position: number }) => a.position - b.position;
 const byDateDesc = (a: { date: string; time: string }, b: { date: string; time: string }) =>
   a.date + a.time < b.date + b.time ? 1 : a.date + a.time > b.date + b.time ? -1 : 0;
@@ -71,13 +79,13 @@ function mapStudent(r: StudentRow): Student {
 }
 
 function mapGroup(r: GroupRow): Group {
-  return { id: r.id, name: r.name, color: r.color, studentIds: r.group_members.map((m) => m.student_id) };
+  return { id: r.id, name: r.name, color: r.color, studentIds: inPoolOrder(r.group_members).map((m) => m.student_id) };
 }
 
 function mapSpace(r: SpaceRow): Space {
-  const base = { name: r.name, description: r.description, students: [...r.students].sort(byName).map(mapStudent) };
+  const base = { name: r.name, description: r.description, students: [...r.students].sort(byCreated).map(mapStudent) };
   if (r.kind === "studio") {
-    return { ...base, id: r.id as StudioSpace["id"], kind: "studio", groups: [...r.groups].sort(byName).map(mapGroup) };
+    return { ...base, id: r.id as StudioSpace["id"], kind: "studio", groups: [...r.groups].sort(byCreated).map(mapGroup) };
   }
   return { ...base, id: r.id as PrivateSpace["id"], kind: "private" };
 }
@@ -93,7 +101,7 @@ function mapLesson(r: LessonRow): Lesson {
     ...(r.group_id ? { groupId: r.group_id } : {}),
     date: r.date,
     time: shortTime(r.time),
-    participantIds: r.lesson_participants.map((p) => p.student_id),
+    participantIds: inPoolOrder(r.lesson_participants).map((p) => p.student_id),
     songIds: [...r.lesson_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
@@ -108,7 +116,7 @@ function mapSession(r: SessionRow): Session {
     songIds: [...r.session_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
-    payments: r.session_payments.map((p) => ({ studentId: p.student_id, amount: p.amount, paid: p.paid })),
+    payments: inPoolOrder(r.session_payments).map((p) => ({ studentId: p.student_id, amount: p.amount, paid: p.paid })),
   };
 }
 
@@ -118,7 +126,7 @@ function mapProject(r: ProjectRow): DanceProject {
     name: r.name,
     type: r.type,
     color: r.color,
-    participantIds: r.project_participants.map((p) => p.student_id),
+    participantIds: inPoolOrder(r.project_participants).map((p) => p.student_id),
     ...(r.main_song_id ? { mainSongId: r.main_song_id } : {}),
     sessions: [...r.sessions].map(mapSession).sort(byDateDesc),
   };
@@ -189,7 +197,7 @@ export async function getLesson(spaceId: string, lessonId: string): Promise<Less
 
 export async function getProjects(): Promise<DanceProject[]> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).order("created_at");
+  const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).order("created_at").order("id");
   if (error) fail("projects", error);
   return (data as unknown as ProjectRow[]).map(mapProject);
 }
@@ -204,7 +212,7 @@ export async function getProject(projectId: string): Promise<DanceProject | unde
 
 export async function getSongs(): Promise<Song[]> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("songs").select(SONG_SELECT).order("created_at").order("title");
+  const { data, error } = await supabase.from("songs").select(SONG_SELECT).order("created_at").order("id");
   if (error) fail("songs", error);
   return (data as unknown as SongRow[]).map(mapSong);
 }

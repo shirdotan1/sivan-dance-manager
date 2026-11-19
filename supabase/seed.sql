@@ -8,34 +8,34 @@ insert into public.spaces (id, name, kind, description, position) values
   ('balance-studio', 'סטודיו באלאנס', 'studio', 'שיעורי ג׳אז לירי לנוער ולבוגרות', 1),
   ('private-lessons', 'שיעורים פרטיים', 'private', 'פרויקטי ריקוד אישיים: סולו וקבוצות קטנות', 2);
 
-insert into public.students (id, space_id, name, phone) values
-  ('79a3e90c-36fc-5e26-90a1-7ffe1b404db1', 'new-high-school', 'נועה כהן', '050-000-1101'),
-  ('cb862c31-d3d9-578b-ac6e-6ddf3973b52b', 'new-high-school', 'מאיה לוי', '050-000-1102'),
-  ('ba7fb9e6-0ede-5caf-9c12-ef0d8d8fde8c', 'new-high-school', 'תמר מזרחי', '050-000-1103'),
-  ('aa833869-de51-51d6-a803-e876bda2502c', 'new-high-school', 'יעל אברהם', '050-000-1104'),
-  ('a919d8af-ea2c-5a57-8979-59dc00db0fee', 'new-high-school', 'שירה פרידמן', '050-000-1105'),
-  ('d7ea03d2-cab3-5f35-a487-7ffe7091cdb0', 'new-high-school', 'אגם ביטון', '050-000-1106'),
-  ('9ea12a42-2930-5913-91dd-9840ae9054a6', 'new-high-school', 'רותם אלון', '050-000-1107'),
-  ('4b86295c-2c59-5ff9-8b55-0a15d305d6a0', 'new-high-school', 'עדן יוסף', '050-000-1108'),
-  ('f5020b4f-6093-55c6-aa37-5661c738dee1', 'new-high-school', 'ליה שטרן', '050-000-1109'),
-  ('ecc7bf77-4df9-5e90-aaee-7173bed299f7', 'balance-studio', 'רוני שפירא', '052-000-2201'),
-  ('1921402c-4826-5c72-9bab-b5fa57d108c6', 'balance-studio', 'הילה דהן', '052-000-2202'),
-  ('adf6d075-6583-58d4-9f70-e1fb850f113a', 'balance-studio', 'ליאור גבאי', '052-000-2203'),
-  ('b74f4751-412a-5e6d-ada7-7860411db283', 'balance-studio', 'עדי אוחיון', '052-000-2204'),
-  ('2d6124dd-a333-5be1-88d6-b3920278d247', 'balance-studio', 'מיכל רוזן', '052-000-2205'),
-  ('f4066f81-a0bd-5826-9211-09990ec97333', 'balance-studio', 'סתיו קרמר', '052-000-2206'),
-  ('496c744f-85db-5390-aa6c-c871fccb8922', 'private-lessons', 'אלה ברק', '054-000-3301'),
-  ('73d9786a-2aa6-587c-8d56-fd0736f44e54', 'private-lessons', 'דניאל חדד', '054-000-3302'),
-  ('2d253baf-27c7-53f5-8473-d7d66ae6382a', 'private-lessons', 'זוהר נחום', '054-000-3303'),
-  ('670d2de2-414f-5747-b215-359d282c52cf', 'private-lessons', 'נגה פרץ', '054-000-3304'),
-  ('a6159c83-27fb-51c8-991a-b916e8e7f195', 'private-lessons', 'קורל סעדה', '054-000-3305');
+insert into public.students (id, space_id, name, phone, created_at) values
+  ('79a3e90c-36fc-5e26-90a1-7ffe1b404db1', 'new-high-school', 'נועה כהן', '050-000-1101', '2026-09-01T08:00:00.000Z'),
+  ('cb862c31-d3d9-578b-ac6e-6ddf3973b52b', 'new-high-school', 'מאיה לוי', '050-000-1102', '2026-09-01T08:00:01.000Z'),
+  ('ba7fb9e6-0ede-5caf-9c12-ef0d8d8fde8c', 'new-high-school', 'תמר מזרחי', '050-000-1103', '2026-09-01T08:00:02.000Z'),
+  ('aa833869-de51-51d6-a803-e876bda2502c', 'new-high-school', 'יעל אברהם', '050-000-1104', '2026-09-01T08:00:03.000Z'),
+  ('a919d8af-ea2c-5a57-8979-59dc00db0fee', 'new-high-school', 'שירה פרידמן', '050-000-1105', '2026-09-01T08:00:04.000Z'),
+  ('d7ea03d2-cab3-5f35-a487-7ffe7091cdb0', 'new-high-school', 'אגם ביטון', '050-000-1106', '2026-09-01T08:00:05.000Z'),
+  ('9ea12a42-2930-5913-91dd-9840ae9054a6', 'new-high-school', 'רותם אלון', '050-000-1107', '2026-09-01T08:00:06.000Z'),
+  ('4b86295c-2c59-5ff9-8b55-0a15d305d6a0', 'new-high-school', 'עדן יוסף', '050-000-1108', '2026-09-01T08:00:07.000Z'),
+  ('f5020b4f-6093-55c6-aa37-5661c738dee1', 'new-high-school', 'ליה שטרן', '050-000-1109', '2026-09-01T08:00:08.000Z'),
+  ('ecc7bf77-4df9-5e90-aaee-7173bed299f7', 'balance-studio', 'רוני שפירא', '052-000-2201', '2026-09-01T08:00:12.000Z'),
+  ('1921402c-4826-5c72-9bab-b5fa57d108c6', 'balance-studio', 'הילה דהן', '052-000-2202', '2026-09-01T08:00:13.000Z'),
+  ('adf6d075-6583-58d4-9f70-e1fb850f113a', 'balance-studio', 'ליאור גבאי', '052-000-2203', '2026-09-01T08:00:14.000Z'),
+  ('b74f4751-412a-5e6d-ada7-7860411db283', 'balance-studio', 'עדי אוחיון', '052-000-2204', '2026-09-01T08:00:15.000Z'),
+  ('2d6124dd-a333-5be1-88d6-b3920278d247', 'balance-studio', 'מיכל רוזן', '052-000-2205', '2026-09-01T08:00:16.000Z'),
+  ('f4066f81-a0bd-5826-9211-09990ec97333', 'balance-studio', 'סתיו קרמר', '052-000-2206', '2026-09-01T08:00:17.000Z'),
+  ('496c744f-85db-5390-aa6c-c871fccb8922', 'private-lessons', 'אלה ברק', '054-000-3301', '2026-09-01T08:00:20.000Z'),
+  ('73d9786a-2aa6-587c-8d56-fd0736f44e54', 'private-lessons', 'דניאל חדד', '054-000-3302', '2026-09-01T08:00:21.000Z'),
+  ('2d253baf-27c7-53f5-8473-d7d66ae6382a', 'private-lessons', 'זוהר נחום', '054-000-3303', '2026-09-01T08:00:22.000Z'),
+  ('670d2de2-414f-5747-b215-359d282c52cf', 'private-lessons', 'נגה פרץ', '054-000-3304', '2026-09-01T08:00:23.000Z'),
+  ('a6159c83-27fb-51c8-991a-b916e8e7f195', 'private-lessons', 'קורל סעדה', '054-000-3305', '2026-09-01T08:00:24.000Z');
 
-insert into public.groups (id, space_id, name, color) values
-  ('2ae03b31-b3fa-5569-bff9-2d071b1439d2', 'new-high-school', 'שכבה ט׳', '#3b6fc4'),
-  ('f658f7a5-78f2-5aab-82cd-32f3841ac207', 'new-high-school', 'שכבה י׳', '#c8621b'),
-  ('1ad351d9-32c0-5416-b9af-9279b1d072fc', 'new-high-school', 'להקה ייצוגית', '#2f8a4f'),
-  ('c515269f-b24e-5811-b970-fa630ff6b42e', 'balance-studio', 'ג׳אז נוער', '#c4407a'),
-  ('40679bac-c7fb-5313-8458-66ac5702d6ca', 'balance-studio', 'ג׳אז בוגרות', '#8b4fc4');
+insert into public.groups (id, space_id, name, color, created_at) values
+  ('2ae03b31-b3fa-5569-bff9-2d071b1439d2', 'new-high-school', 'שכבה ט׳', '#3b6fc4', '2026-09-01T08:00:09.000Z'),
+  ('f658f7a5-78f2-5aab-82cd-32f3841ac207', 'new-high-school', 'שכבה י׳', '#c8621b', '2026-09-01T08:00:10.000Z'),
+  ('1ad351d9-32c0-5416-b9af-9279b1d072fc', 'new-high-school', 'להקה ייצוגית', '#2f8a4f', '2026-09-01T08:00:11.000Z'),
+  ('c515269f-b24e-5811-b970-fa630ff6b42e', 'balance-studio', 'ג׳אז נוער', '#c4407a', '2026-09-01T08:00:18.000Z'),
+  ('40679bac-c7fb-5313-8458-66ac5702d6ca', 'balance-studio', 'ג׳אז בוגרות', '#8b4fc4', '2026-09-01T08:00:19.000Z');
 
 insert into public.group_members (group_id, student_id) values
   ('2ae03b31-b3fa-5569-bff9-2d071b1439d2', '79a3e90c-36fc-5e26-90a1-7ffe1b404db1'),
@@ -56,19 +56,19 @@ insert into public.group_members (group_id, student_id) values
   ('40679bac-c7fb-5313-8458-66ac5702d6ca', '2d6124dd-a333-5be1-88d6-b3920278d247'),
   ('40679bac-c7fb-5313-8458-66ac5702d6ca', 'f4066f81-a0bd-5826-9211-09990ec97333');
 
-insert into public.songs (id, title, artist, style, link, note, title_lang, artist_lang) values
-  ('694094b2-3b2d-5ee0-b190-b6a434e79d1d', 'טודו בום', 'סטטיק ובן אל תבורי', 'היפ הופ', null, 'מצוין לחימום — קצב מדבק', 'he', 'he'),
-  ('93076019-6439-539d-82f1-c694a16757dc', 'תל אביב', 'עומר אדם', 'פופ ים-תיכוני', null, null, 'he', 'he'),
-  ('ed8655c4-62f0-5250-a795-d74b6cdd9d43', 'Toy', 'נטע ברזילי', 'פופ', null, 'הגרסה המקוצרת לבחינה — 2:30', 'en', 'he'),
-  ('a125d653-97b2-5433-a983-56358312d68f', 'הללויה', 'גלי עטרי', 'קלאסי ישראלי', null, null, 'he', 'he'),
-  ('9dafae51-902b-5df2-93ba-243c88344537', 'אבניבי', 'יזהר כהן', 'דיסקו', null, null, 'he', 'he'),
-  ('02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 'דיווה', 'דנה אינטרנשיונל', 'דיסקו', null, null, 'he', 'he'),
-  ('6ac15945-ea7b-5a07-904e-5f9e515a8c0d', 'Uptown Funk', 'Mark Ronson ft. Bruno Mars', 'פאנק', null, 'לעבוד על איזולציות בפזמון', 'en', 'en'),
-  ('75a85f04-81a7-5c33-9ea2-43b4105f4ef2', 'Dancing Queen', 'ABBA', 'דיסקו', null, null, 'en', 'en'),
-  ('e94a29d4-6c76-5747-8f99-a85d6cd0581d', 'Shake It Off', 'Taylor Swift', 'פופ', null, null, 'en', 'en'),
-  ('8509f271-19f2-5d54-a9d2-f00ba6ac16a0', 'Levitating', 'Dua Lipa', 'פופ', null, null, 'en', 'en'),
-  ('70877f81-fed3-5eb1-aed2-ee236f4f33ea', 'Can''t Stop the Feeling!', 'Justin Timberlake', 'פופ', null, null, 'en', 'en'),
-  ('98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', 'Happy', 'Pharrell Williams', 'סול', null, null, 'en', 'en');
+insert into public.songs (id, title, artist, style, link, note, title_lang, artist_lang, created_at) values
+  ('694094b2-3b2d-5ee0-b190-b6a434e79d1d', 'טודו בום', 'סטטיק ובן אל תבורי', 'היפ הופ', null, 'מצוין לחימום — קצב מדבק', 'he', 'he', '2026-09-01T08:00:25.000Z'),
+  ('93076019-6439-539d-82f1-c694a16757dc', 'תל אביב', 'עומר אדם', 'פופ ים-תיכוני', null, null, 'he', 'he', '2026-09-01T08:00:26.000Z'),
+  ('ed8655c4-62f0-5250-a795-d74b6cdd9d43', 'Toy', 'נטע ברזילי', 'פופ', null, 'הגרסה המקוצרת לבחינה — 2:30', 'en', 'he', '2026-09-01T08:00:27.000Z'),
+  ('a125d653-97b2-5433-a983-56358312d68f', 'הללויה', 'גלי עטרי', 'קלאסי ישראלי', null, null, 'he', 'he', '2026-09-01T08:00:28.000Z'),
+  ('9dafae51-902b-5df2-93ba-243c88344537', 'אבניבי', 'יזהר כהן', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:29.000Z'),
+  ('02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 'דיווה', 'דנה אינטרנשיונל', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:30.000Z'),
+  ('6ac15945-ea7b-5a07-904e-5f9e515a8c0d', 'Uptown Funk', 'Mark Ronson ft. Bruno Mars', 'פאנק', null, 'לעבוד על איזולציות בפזמון', 'en', 'en', '2026-09-01T08:00:31.000Z'),
+  ('75a85f04-81a7-5c33-9ea2-43b4105f4ef2', 'Dancing Queen', 'ABBA', 'דיסקו', null, null, 'en', 'en', '2026-09-01T08:00:32.000Z'),
+  ('e94a29d4-6c76-5747-8f99-a85d6cd0581d', 'Shake It Off', 'Taylor Swift', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:33.000Z'),
+  ('8509f271-19f2-5d54-a9d2-f00ba6ac16a0', 'Levitating', 'Dua Lipa', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:34.000Z'),
+  ('70877f81-fed3-5eb1-aed2-ee236f4f33ea', 'Can''t Stop the Feeling!', 'Justin Timberlake', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:35.000Z'),
+  ('98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', 'Happy', 'Pharrell Williams', 'סול', null, null, 'en', 'en', '2026-09-01T08:00:36.000Z');
 
 insert into public.lessons (id, space_id, group_id, date, time, notes) values
   ('98788b45-5ce4-58c2-b8e1-48d2e139cf43', 'new-high-school', '2ae03b31-b3fa-5569-bff9-2d071b1439d2', '2026-11-16', '15:30', 'עבדנו על הכוריאוגרפיה לטקס חנוכה. לחזור על המעבר בפזמון.'),
@@ -108,10 +108,10 @@ insert into public.lesson_songs (lesson_id, song_id, position) values
   ('c2e67cfc-0902-5f8a-84f6-10f9ff9e1533', '9dafae51-902b-5df2-93ba-243c88344537', 0),
   ('c2e67cfc-0902-5f8a-84f6-10f9ff9e1533', '02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 1);
 
-insert into public.projects (id, space_id, name, type, main_song_id, color) values
-  ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', 'private-lessons', 'סולו לבגרות במחול', 'solo', 'ed8655c4-62f0-5250-a795-d74b6cdd9d43', '#9a7a0c'),
-  ('1b39a7c2-6d91-5cff-881c-d9940dae98cc', 'private-lessons', 'ריקוד לבת מצווה', 'group', '70877f81-fed3-5eb1-aed2-ee236f4f33ea', '#11858f'),
-  ('3c25f9f3-f619-54e6-8396-289054864315', 'private-lessons', 'סולו לתחרות ג׳אז', 'solo', '98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', '#c43d3d');
+insert into public.projects (id, space_id, name, type, main_song_id, color, created_at) values
+  ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', 'private-lessons', 'סולו לבגרות במחול', 'solo', 'ed8655c4-62f0-5250-a795-d74b6cdd9d43', '#9a7a0c', '2026-09-01T08:00:37.000Z'),
+  ('1b39a7c2-6d91-5cff-881c-d9940dae98cc', 'private-lessons', 'ריקוד לבת מצווה', 'group', '70877f81-fed3-5eb1-aed2-ee236f4f33ea', '#11858f', '2026-09-01T08:00:38.000Z'),
+  ('3c25f9f3-f619-54e6-8396-289054864315', 'private-lessons', 'סולו לתחרות ג׳אז', 'solo', '98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', '#c43d3d', '2026-09-01T08:00:39.000Z');
 
 insert into public.project_participants (project_id, student_id) values
   ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', '496c744f-85db-5390-aa6c-c871fccb8922'),
