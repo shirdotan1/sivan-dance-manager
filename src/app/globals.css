@@ -152,6 +152,19 @@
     min-inline-size: 0;
   }
 
+  /* A select is as wide as its longest option (e.g. a long song + artist). */
+  select {
+    max-inline-size: 100%;
+  }
+
+  /* Single-column grids get a track that content can't push open: the
+     implicit `auto` track grows to the widest item's min-content (such as
+     that select) and overflowed phones by a pixel or more. Explicit
+     grid-cols-* utilities still override this. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* At least 16px so iOS doesn't zoom on focus. */
   :where(input, textarea, select, button) {
     font: inherit;
