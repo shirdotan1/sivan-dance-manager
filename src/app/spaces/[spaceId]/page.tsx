@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SongTitle } from "@/components/SongText";
+import { GroupCard } from "@/components/GroupCard";
+import { GroupForm } from "@/components/GroupForm";
 import { PoolManager } from "@/components/PoolManager";
+import { createGroup } from "@/lib/actions/groups";
 import { getLessonsForSpace, getProjects, getSongs, getSpace } from "@/lib/data/queries";
 import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
@@ -40,24 +43,24 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
         <h2 id="groups-heading" className="mb-3">
           קבוצות ({space.groups.length})
         </h2>
-        <ul className="grid gap-4 sm:grid-cols-2" role="list">
-          {space.groups.map((group) => {
-            const members = activeStudents(studentsByIds(space.students, group.studentIds));
-            return (
-              <li key={group.id} className="card">
-                <h3>{group.name}</h3>
-                <p className="mb-2 text-sm text-muted">{members.length} תלמידות</p>
-                <ul className="flex flex-wrap gap-1.5" role="list">
-                  {members.map((m) => (
-                    <li key={m.id} className="chip">
-                      {m.name}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
-        </ul>
+        {space.groups.length === 0 ? (
+          <p className="empty-state mb-4">אין עדיין קבוצות במרחב. אפשר ליצור קבוצה בטופס למטה.</p>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2" role="list">
+            {space.groups.map((group) => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                pool={pool}
+                members={activeStudents(studentsByIds(space.students, group.studentIds))}
+              />
+            ))}
+          </ul>
+        )}
+        <details className="disclosure mt-4">
+          <summary>+ קבוצה חדשה</summary>
+          <GroupForm action={createGroup.bind(null, space.id)} pool={pool} submitLabel="יצירת הקבוצה" />
+        </details>
       </section>
 
       <section aria-labelledby="lessons-heading" className="mb-10">
