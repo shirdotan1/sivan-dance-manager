@@ -1,4 +1,5 @@
 import { SongArtist, SongTitle } from "@/components/SongText";
+import { StudentLink } from "@/components/StudentLink";
 import { listenUrl } from "@/lib/format";
 import type { MediaItem, Song, Student } from "@/lib/types";
 
@@ -16,7 +17,7 @@ export function ParticipantsView({ students, title = "משתתפות" }: { stude
         <ul className="flex flex-wrap gap-1.5" role="list">
           {students.map((s) => (
             <li key={s.id} className="chip">
-              {s.name}
+              <StudentLink student={s} />
               {s.archived && <span className="text-muted"> (לא במאגר)</span>}
             </li>
           ))}

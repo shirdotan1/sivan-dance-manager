@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useOptimistic, useTransition } from "react";
+import { StudentLink } from "@/components/StudentLink";
 import { SwitchInput } from "@/components/SwitchInput";
 import { setPaymentPaid } from "@/lib/actions/sessions";
 import { formatCurrency } from "@/lib/format";
@@ -35,7 +36,7 @@ export function PaymentsQuick({ sessionId, payments, students }: { sessionId: st
           {optimistic.map((p) => (
             <li key={p.studentId} className="flex flex-wrap items-center justify-between gap-3 py-2">
               <span>
-                <span className="block font-semibold">{nameOf(p.studentId)}</span>
+                <StudentLink student={{ id: p.studentId, name: nameOf(p.studentId) }} className="block font-semibold" />
                 <span className="text-sm text-muted">{formatCurrency(p.amount)}</span>
               </span>
               <span className="flex flex-col items-start gap-1">

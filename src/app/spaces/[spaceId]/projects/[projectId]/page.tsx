@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteProjectButton } from "@/components/DeleteProjectButton";
 import { SongArtist, SongTitle } from "@/components/SongText";
+import { StudentLink } from "@/components/StudentLink";
 import { getProject, getSong, getSpace } from "@/lib/data/queries";
 import { formatCurrency, formatDate, listenUrl, projectTypeLabel } from "@/lib/format";
 import { studentsByIds } from "@/lib/lookup";
@@ -46,7 +47,14 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           <dd>{projectTypeLabel[project.type]}</dd>
 
           <dt className="font-medium text-muted">{participants.length > 1 ? "משתתפות" : "משתתפת"}</dt>
-          <dd>{participants.map((p) => p.name).join(", ")}</dd>
+          <dd>
+            {participants.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 && ", "}
+                <StudentLink student={p} className="text-brand-strong underline" />
+              </span>
+            ))}
+          </dd>
 
           <dt className="font-medium text-muted">שיר ראשי</dt>
           <dd>

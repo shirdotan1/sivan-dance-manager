@@ -2,6 +2,7 @@
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GroupForm } from "@/components/GroupForm";
+import { StudentLink } from "@/components/StudentLink";
 import { deleteGroup, updateGroup } from "@/lib/actions/groups";
 import type { Group, Student } from "@/lib/types";
 
@@ -30,7 +31,7 @@ export function GroupCard({ group, pool, members }: { group: Group; pool: Studen
         <ul className="flex flex-wrap gap-1.5" role="list">
           {members.map((m) => (
             <li key={m.id} className="chip">
-              {m.name}
+              <StudentLink student={m} />
             </li>
           ))}
         </ul>

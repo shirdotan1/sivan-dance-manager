@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { StudentLink } from "@/components/StudentLink";
 import { addStudent, removeStudentFromPool } from "@/lib/actions/students";
 import { useActionForm } from "@/lib/actions/useActionForm";
 import type { Student } from "@/lib/types";
@@ -19,7 +20,7 @@ export function PoolManager({ spaceId, students }: { spaceId: string; students: 
         <ul className="divider-list" role="list">
           {students.map((student) => (
             <li key={student.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1">
-              <span className="font-medium">{student.name}</span>
+              <StudentLink student={student} className="font-medium" />
               <span className="flex items-center gap-2">
                 {student.phone && (
                   <a
