@@ -1,13 +1,16 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { listenUrl } from "@/data/demo";
+import { listenUrl, titleFromLink } from "@/lib/format";
+import type { Song } from "@/lib/types";
 import { SongArtist, SongTitle } from "@/components/SongText";
 import { primaryButton, secondaryButton, sectionClass } from "@/components/lesson/styles";
-import { titleFromLink, useSongBank } from "@/components/songs/SongBankProvider";
+import { useLocalSongBank } from "@/components/songs/useLocalSongBank";
 import { SongLinkField } from "@/components/songs/SongLinkField";
 
 interface SongsSectionProps {
+  /** The song bank (from the database). */
+  bank: Song[];
   initialSongIds: string[];
   /** Heading, e.g. "שירים בשיעור" / "שירים במפגש". */
   heading: string;
@@ -19,9 +22,9 @@ interface SongsSectionProps {
  * Songs of a lesson/session: pick from the bank, or add a new song by
  * name and/or link — new songs join the (in-memory) bank automatically.
  */
-export function SongsSection({ initialSongIds, heading, addedTo }: SongsSectionProps) {
+export function SongsSection({ bank: initialBank, initialSongIds, heading, addedTo }: SongsSectionProps) {
   const id = useId();
-  const { songs: bank, getSong, addSong } = useSongBank();
+  const { songs: bank, getSong, addSong } = useLocalSongBank(initialBank);
   const [songIds, setSongIds] = useState(initialSongIds);
   const [status, setStatus] = useState("");
   const [newFormKey, setNewFormKey] = useState(0);

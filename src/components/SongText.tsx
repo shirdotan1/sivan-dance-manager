@@ -1,4 +1,4 @@
-import type { Song } from "@/data/demo";
+import type { Song } from "@/lib/types";
 
 /**
  * Song title and artist as bidi-isolated text: <bdi> (implicit dir="auto")

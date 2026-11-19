@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { MediaItem } from "@/data/demo";
+import type { MediaItem } from "@/lib/types";
 import { secondaryButton, sectionClass } from "@/components/lesson/styles";
 
 const placeholderTints = ["bg-brand-soft", "bg-success-soft", "bg-danger-soft"];

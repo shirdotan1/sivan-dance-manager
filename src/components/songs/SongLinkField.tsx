@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { SONG_LINK_PATTERN } from "@/data/demo";
+import { SONG_LINK_PATTERN } from "@/lib/format";
 
 /**
  * Optional YouTube/Spotify link input. The error is shown only after the

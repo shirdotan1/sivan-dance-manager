@@ -4,32 +4,19 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SongTitle } from "@/components/SongText";
 import { StudentList } from "@/components/StudentList";
-import {
-  formatCurrency,
-  formatDate,
-  getLessonsForSpace,
-  getSong,
-  getSpace,
-  getStudents,
-  projectTypeLabel,
-  projects,
-  spaces,
-  type PrivateSpace,
-  type StudioSpace,
-} from "@/data/demo";
-
-export function generateStaticParams() {
-  return spaces.map((space) => ({ spaceId: space.id }));
-}
+import { getLessonsForSpace, getProjects, getSongs, getSpace } from "@/lib/data/queries";
+import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
+import { activeStudents, studentsByIds } from "@/lib/lookup";
+import type { PrivateSpace, StudioSpace } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/spaces/[spaceId]">): Promise<Metadata> {
   const { spaceId } = await params;
-  return { title: getSpace(spaceId)?.name ?? "מרחב לא נמצא" };
+  return { title: (await getSpace(spaceId))?.name ?? "מרחב לא נמצא" };
 }
 
 export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]">) {
   const { spaceId } = await params;
-  const space = getSpace(spaceId);
+  const space = await getSpace(spaceId);
   if (!space) notFound();
 
   return (
@@ -43,8 +30,9 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
   );
 }
 
-function StudioSpaceView({ space }: { space: StudioSpace }) {
-  const spaceLessons = getLessonsForSpace(space.id);
+async function StudioSpaceView({ space }: { space: StudioSpace }) {
+  const spaceLessons = await getLessonsForSpace(space.id);
+  const pool = activeStudents(space.students);
 
   return (
     <>
@@ -54,7 +42,7 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
         </h2>
         <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {space.groups.map((group) => {
-            const members = getStudents(space, group.studentIds);
+            const members = activeStudents(studentsByIds(space.students, group.studentIds));
             return (
               <li key={group.id} className="card">
                 <h3>{group.name}</h3>
@@ -104,17 +92,19 @@ function StudioSpaceView({ space }: { space: StudioSpace }) {
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">
-          כל התלמידות במרחב ({space.students.length})
+          כל התלמידות במרחב ({pool.length})
         </h2>
         <div className="card py-2">
-          <StudentList students={space.students} />
+          <StudentList students={pool} />
         </div>
       </section>
     </>
   );
 }
 
-function PrivateSpaceView({ space }: { space: PrivateSpace }) {
+async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
+  const [projects, songs] = await Promise.all([getProjects(), getSongs()]);
+  const pool = activeStudents(space.students);
   return (
     <>
       <section aria-labelledby="projects-heading" className="mb-10">
@@ -123,8 +113,8 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
         </h2>
         <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {projects.map((project) => {
-            const mainSong = getSong(project.mainSongId);
-            const participants = getStudents(space, project.participantIds);
+            const mainSong = songs.find((s) => s.id === project.mainSongId);
+            const participants = studentsByIds(space.students, project.participantIds);
             const unpaid = project.sessions
               .flatMap((s) => s.payments)
               .filter((p) => !p.paid)
@@ -160,10 +150,10 @@ function PrivateSpaceView({ space }: { space: PrivateSpace }) {
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">
-          תלמידות ({space.students.length})
+          תלמידות ({pool.length})
         </h2>
         <div className="card py-2">
-          <StudentList students={space.students} />
+          <StudentList students={pool} />
         </div>
       </section>
     </>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
-import { listenUrl } from "@/data/demo";
+import { listenUrl } from "@/lib/format";
+import type { Song } from "@/lib/types";
 import { SongArtist, SongTitle } from "@/components/SongText";
-import { useSongBank } from "@/components/songs/SongBankProvider";
+import { useLocalSongBank, type NewSongInput } from "@/components/songs/useLocalSongBank";
 import { SongLinkField } from "@/components/songs/SongLinkField";
 
-export function SongBank() {
-  const { songs } = useSongBank();
+export function SongBank({ songs: initialSongs }: { songs: Song[] }) {
+  const { songs, addSong } = useLocalSongBank(initialSongs);
   const searchId = useId();
   const [query, setQuery] = useState("");
 
@@ -20,7 +21,7 @@ export function SongBank() {
 
   return (
     <>
-      <AddSongForm />
+      <AddSongForm addSong={addSong} />
 
       <search className="mb-4 block">
         <form onSubmit={(e) => e.preventDefault()}>
@@ -107,8 +108,7 @@ export function SongBank() {
   );
 }
 
-function AddSongForm() {
-  const { addSong } = useSongBank();
+function AddSongForm({ addSong }: { addSong: (input: NewSongInput) => Song }) {
   const id = useId();
   const [status, setStatus] = useState("");
   // Remount the fields after a successful add to clear them and their error state.

@@ -2,7 +2,8 @@
 
 import { useId, useState } from "react";
 import { SwitchInput } from "@/components/SwitchInput";
-import { formatCurrency, type Payment, type Student } from "@/data/demo";
+import { formatCurrency } from "@/lib/format";
+import type { Payment, Student } from "@/lib/types";
 import { sectionClass } from "@/components/lesson/styles";
 
 interface PaymentsSectionProps {

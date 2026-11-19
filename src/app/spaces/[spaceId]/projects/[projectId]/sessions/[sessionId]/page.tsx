@@ -2,45 +2,27 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SessionEditor } from "@/components/SessionEditor";
-import {
-  formatDate,
-  getProject,
-  getSession,
-  getSpace,
-  getStudents,
-  privateSpace,
-  projectTypeLabel,
-  projects,
-} from "@/data/demo";
+import { getProject, getSongs, getSpace } from "@/lib/data/queries";
+import { formatDate, projectTypeLabel } from "@/lib/format";
+import { studentsByIds } from "@/lib/lookup";
 
 type Props = PageProps<"/spaces/[spaceId]/projects/[projectId]/sessions/[sessionId]">;
 
-export function generateStaticParams() {
-  return projects.flatMap((project) =>
-    project.sessions.map((session) => ({
-      spaceId: privateSpace.id,
-      projectId: project.id,
-      sessionId: session.id,
-    })),
-  );
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { projectId, sessionId } = await params;
-  const project = getProject(projectId);
-  const session = project && getSession(project, sessionId);
+  const project = await getProject(projectId);
+  const session = project?.sessions.find((s) => s.id === sessionId);
   if (!project || !session) return { title: "מפגש לא נמצא" };
   return { title: `מפגש ${formatDate(session.date)} · ${project.name}` };
 }
 
 export default async function SessionPage({ params }: Props) {
   const { spaceId, projectId, sessionId } = await params;
-  const space = getSpace(spaceId);
-  const project = getProject(projectId);
-  const session = project && getSession(project, sessionId);
+  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getSongs()]);
+  const session = project?.sessions.find((s) => s.id === sessionId);
   if (!space || space.kind !== "private" || !project || !session) notFound();
 
-  const participants = getStudents(space, project.participantIds);
+  const participants = studentsByIds(space.students, project.participantIds);
 
   return (
     <>
@@ -60,7 +42,7 @@ export default async function SessionPage({ params }: Props) {
         {participants.map((p) => p.name).join(", ")}
       </p>
 
-      <SessionEditor space={space} project={project} session={session} />
+      <SessionEditor space={space} project={project} session={session} bank={bank} />
     </>
   );
 }

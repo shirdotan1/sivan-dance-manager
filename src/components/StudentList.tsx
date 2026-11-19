@@ -1,4 +1,4 @@
-import type { Student } from "@/data/demo";
+import type { Student } from "@/lib/types";
 
 /** Student names with tap-to-call phone numbers. */
 export function StudentList({ students }: { students: Student[] }) {

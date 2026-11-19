@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { Group, Student } from "@/data/demo";
+import type { Group, Student } from "@/lib/types";
 import { primaryButton, secondaryButton, sectionClass } from "@/components/lesson/styles";
 
 interface ParticipantsSectionProps {
@@ -26,7 +26,8 @@ export function ParticipantsSection({ pool, groups = [], participantIds, onChang
 
   const allStudents = [...pool, ...newStudents];
   const nameOf = (sid: string) => allStudents.find((s) => s.id === sid)?.name ?? "תלמידה";
-  const available = allStudents.filter((s) => !participantIds.includes(s.id));
+  // Students removed from the pool keep their name in history but are never offered.
+  const available = allStudents.filter((s) => !s.archived && !participantIds.includes(s.id));
 
   const addGroup = (groupId: string) => {
     const group = groups.find((g) => g.id === groupId);
@@ -53,7 +54,7 @@ export function ParticipantsSection({ pool, groups = [], participantIds, onChang
   const addNewStudent = (rawName: string) => {
     const name = rawName.trim().replace(/\s+/g, " ");
     if (!name) return;
-    const existing = allStudents.find((s) => s.name === name);
+    const existing = allStudents.find((s) => !s.archived && s.name === name);
     if (existing) {
       if (participantIds.includes(existing.id)) {
         setStatus(`${name} כבר ברשימה.`);

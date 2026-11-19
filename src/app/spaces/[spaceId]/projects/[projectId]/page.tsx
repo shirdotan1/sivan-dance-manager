@@ -3,40 +3,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SongArtist, SongTitle } from "@/components/SongText";
-import {
-  formatCurrency,
-  formatDate,
-  getProject,
-  getSessions,
-  getSong,
-  getSpace,
-  getStudents,
-  listenUrl,
-  privateSpace,
-  projectTypeLabel,
-  projects,
-} from "@/data/demo";
-
-export function generateStaticParams() {
-  return projects.map((project) => ({ spaceId: privateSpace.id, projectId: project.id }));
-}
+import { getProject, getSong, getSpace } from "@/lib/data/queries";
+import { formatCurrency, formatDate, listenUrl, projectTypeLabel } from "@/lib/format";
+import { studentsByIds } from "@/lib/lookup";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/spaces/[spaceId]/projects/[projectId]">): Promise<Metadata> {
   const { projectId } = await params;
-  return { title: getProject(projectId)?.name ?? "פרויקט לא נמצא" };
+  return { title: (await getProject(projectId))?.name ?? "פרויקט לא נמצא" };
 }
 
 export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceId]/projects/[projectId]">) {
   const { spaceId, projectId } = await params;
-  const space = getSpace(spaceId);
-  const project = getProject(projectId);
+  const [space, project] = await Promise.all([getSpace(spaceId), getProject(projectId)]);
   if (!space || space.kind !== "private" || !project) notFound();
 
-  const participants = getStudents(space, project.participantIds);
-  const mainSong = getSong(project.mainSongId);
-  const sessions = getSessions(project);
+  const participants = studentsByIds(space.students, project.participantIds);
+  const mainSong = await getSong(project.mainSongId);
+  const sessions = project.sessions; // newest first
 
   return (
     <>

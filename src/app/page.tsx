@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getLessonsForSpace, projects, spaces } from "@/data/demo";
+import { Suspense } from "react";
+import { getLessonCounts, getProjects, getSpaces } from "@/lib/data/queries";
+import { activeStudents } from "@/lib/lookup";
 
 export default function HomePage() {
   return (
@@ -22,6 +24,18 @@ export default function HomePage() {
         <p className="text-lg text-muted">לאן נכנסים היום?</p>
       </section>
 
+      {/* The hero above is static (instant); the cards read the database. */}
+      <Suspense fallback={<SpaceCardsSkeleton />}>
+        <SpaceCards />
+      </Suspense>
+    </>
+  );
+}
+
+async function SpaceCards() {
+  const [spaces, lessonCounts, projects] = await Promise.all([getSpaces(), getLessonCounts(), getProjects()]);
+  return (
+    <>
       {/* One column on phones, all three spaces in a row once there's room
           (no 2+1 in-between that leaves one card alone). */}
       <ul className="grid gap-5 md:grid-cols-3" role="list">
@@ -32,9 +46,9 @@ export default function HomePage() {
                 <h2 className="text-brand-strong">{space.name}</h2>
                 <p className="mt-1 text-muted">{space.description}</p>
                 <p className="mt-3 text-sm">
-                  {space.students.length} תלמידות ·{" "}
+                  {activeStudents(space.students).length} תלמידות ·{" "}
                   {space.kind === "studio"
-                    ? `${space.groups.length} קבוצות · ${getLessonsForSpace(space.id).length} שיעורים`
+                    ? `${space.groups.length} קבוצות · ${lessonCounts[space.id] ?? 0} שיעורים`
                     : `${projects.length} פרויקטים · כולל מעקב תשלומים`}
                 </p>
               </Link>
@@ -43,5 +57,15 @@ export default function HomePage() {
         })}
       </ul>
     </>
+  );
+}
+
+function SpaceCardsSkeleton() {
+  return (
+    <ul className="grid gap-5 md:grid-cols-3" role="list" aria-busy="true" aria-label="טוען מרחבים">
+      {[0, 1, 2].map((i) => (
+        <li key={i} className="card h-36 animate-pulse" />
+      ))}
+    </ul>
   );
 }
