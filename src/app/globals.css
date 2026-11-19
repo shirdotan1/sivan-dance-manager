@@ -90,6 +90,8 @@
   html {
     /* Keep focused elements clear of the sticky header (incl. its safe-area padding). */
     scroll-padding-block-start: calc(6rem + env(safe-area-inset-top, 0px));
+    /* …and of the sticky bottom action bar. */
+    scroll-padding-block-end: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 
   body {
@@ -144,6 +146,12 @@
   }
 
   /* ---------- Form controls ---------- */
+  /* Fieldsets default to min-inline-size: min-content and refuse to shrink,
+     which widened the page past the viewport on phones. */
+  fieldset {
+    min-inline-size: 0;
+  }
+
   /* At least 16px so iOS doesn't zoom on focus. */
   :where(input, textarea, select, button) {
     font: inherit;
@@ -258,6 +266,23 @@
     }
   }
 
+  /* A <legend> rendered inside a bordered card (instead of on its border):
+     floated full-width, and everything after it clears the float — without
+     the clear, the next block sits beside the float and overflows in RTL. */
+  .card-legend {
+    float: inline-start;
+    inline-size: 100%;
+    margin-block-end: 0.75rem;
+    padding: 0;
+    font-size: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+    font-weight: 700;
+    line-height: 1.25;
+
+    & ~ * {
+      clear: both;
+    }
+  }
+
   /* Card section inside a page (lesson/session blocks, details). */
   .card-section {
     margin-block-end: 2rem;
@@ -361,6 +386,27 @@
     padding-inline: 0.25rem;
     /* Cancel the padding visually so the text stays aligned with its column. */
     margin-inline: -0.25rem;
+  }
+
+  /* Primary actions pinned to the bottom of the viewport (thumb reach on
+     phones), clear of the home indicator. Sticky, so it never covers the
+     end of the content. */
+  .action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: grid;
+    gap: 0.5rem;
+    justify-items: stretch;
+    margin-inline: -1rem;
+    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom, 0px));
+    background: color-mix(in oklab, var(--background) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-block-start: 1px solid var(--border);
+
+    @media (min-width: 40rem) {
+      justify-items: end;
+    }
   }
 
   /* Native modal confirm dialog. */

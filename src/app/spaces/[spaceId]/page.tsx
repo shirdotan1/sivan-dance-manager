@@ -64,11 +64,14 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
       </section>
 
       <section aria-labelledby="lessons-heading" className="mb-10">
-        <h2 id="lessons-heading" className="mb-3">
-          שיעורים
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="lessons-heading">שיעורים ({spaceLessons.length})</h2>
+          <Link href={`/spaces/${space.id}/lessons/new`} className="btn btn-secondary btn-compact max-sm:hidden">
+            + שיעור חדש
+          </Link>
+        </div>
         {spaceLessons.length === 0 ? (
-          <p>עדיין אין שיעורים במרחב הזה.</p>
+          <p className="empty-state">עדיין אין שיעורים במרחב הזה. אפשר ליצור שיעור חדש.</p>
         ) : (
           <ul className="grid gap-4" role="list">
             {spaceLessons.map((lesson) => (
@@ -101,6 +104,13 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
           <PoolManager spaceId={space.id} students={pool} />
         </div>
       </section>
+
+      {/* Daily main action within thumb reach on phones. */}
+      <div className="action-bar sm:hidden">
+        <Link href={`/spaces/${space.id}/lessons/new`} className="btn btn-primary w-full">
+          + שיעור חדש
+        </Link>
+      </div>
     </>
   );
 }

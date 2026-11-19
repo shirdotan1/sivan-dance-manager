@@ -12,10 +12,13 @@ export function SongLinkField({
   name = "link",
   className = "",
   defaultValue,
+  inputRef,
 }: {
+  /** Pass "" to keep the field out of the submitted form data. */
   name?: string;
   className?: string;
   defaultValue?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
 }) {
   const id = useId();
   const hintId = `${id}-hint`;
@@ -32,7 +35,8 @@ export function SongLinkField({
       </span>
       <input
         id={id}
-        name={name}
+        ref={inputRef}
+        name={name || undefined}
         type="url"
         inputMode="url"
         dir="ltr"
