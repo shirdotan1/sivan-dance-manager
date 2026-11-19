@@ -1,14 +1,16 @@
 "use client";
 
 import { useId, useState } from "react";
-import { listenUrl } from "@/lib/format";
+import Link from "next/link";
+import { formatShortDate, listenUrl } from "@/lib/format";
+import type { SongUse } from "@/lib/data/queries";
 import type { Song } from "@/lib/types";
 import { SongArtist, SongTitle } from "@/components/SongText";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SongForm } from "@/components/songs/SongForm";
 import { createSong, deleteSong, updateSong } from "@/lib/actions/songs";
 
-export function SongBank({ songs }: { songs: Song[] }) {
+export function SongBank({ songs, usage }: { songs: Song[]; usage: Record<string, SongUse[]> }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
 
@@ -113,6 +115,7 @@ export function SongBank({ songs }: { songs: Song[] }) {
                   onConfirm={() => deleteSong(song.id)}
                 />
               </div>
+              <SongUsage uses={usage[song.id] ?? []} title={song.title} />
               <details className="disclosure basis-full">
                 <summary>
                   עריכה<span className="visually-hidden"> של {song.title}</span>
@@ -129,5 +132,33 @@ export function SongBank({ songs }: { songs: Song[] }) {
         </ul>
       )}
     </>
+  );
+}
+
+/** "Used in N lessons and M sessions", expandable to links. */
+function SongUsage({ uses, title }: { uses: SongUse[]; title: string }) {
+  const lessons = uses.filter((u) => u.kind === "lesson").length;
+  const sessions = uses.length - lessons;
+  if (uses.length === 0) return <p className="basis-full text-sm text-muted">עדיין לא שימש בשיעורים או במפגשים.</p>;
+  const parts = [
+    lessons ? (lessons === 1 ? "שיעור אחד" : `${lessons} שיעורים`) : "",
+    sessions ? (sessions === 1 ? "מפגש אחד" : `${sessions} מפגשים`) : "",
+  ].filter(Boolean);
+  return (
+    <details className="disclosure basis-full">
+      <summary>
+        שימוש: {parts.join(" ו־")}
+        <span className="visually-hidden"> — {title}</span>
+      </summary>
+      <ul className="grid gap-1 px-4 pb-3" role="list">
+        {uses.map((u) => (
+          <li key={u.href}>
+            <Link href={u.href} className="tap-link text-brand-strong underline underline-offset-4">
+              {u.kind === "lesson" ? "שיעור" : "מפגש"} {formatShortDate(u.date)} · {u.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

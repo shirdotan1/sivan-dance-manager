@@ -448,3 +448,49 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
     projects: projectRows.map(({ id, name, color }) => ({ id, name, color })),
   };
 }
+
+// ---------- Song usage ----------
+
+export interface SongUse {
+  href: string;
+  date: string;
+  label: string;
+  kind: "lesson" | "session";
+}
+
+/** For each song id: the lessons and sessions that use it, newest first. */
+export async function getSongUsage(): Promise<Record<string, SongUse[]>> {
+  const { supabase } = await requireUser();
+  const [ls, ss] = await Promise.all([
+    supabase.from("lesson_songs").select("song_id, lessons(id, space_id, date, spaces(name), groups(name))"),
+    supabase.from("session_songs").select("song_id, sessions(id, date, projects(id, name))"),
+  ]);
+  if (ls.error) fail("song usage (lessons)", ls.error);
+  if (ss.error) fail("song usage (sessions)", ss.error);
+  type L = { song_id: string; lessons: { id: string; space_id: string; date: string; spaces: { name: string } | null; groups: { name: string } | null } | null };
+  type S = { song_id: string; sessions: { id: string; date: string; projects: { id: string; name: string } | null } | null };
+  const usage: Record<string, SongUse[]> = {};
+  const add = (id: string, u: SongUse) => (usage[id] ??= []).push(u);
+  for (const r of ls.data as unknown as L[]) {
+    if (!r.lessons) continue;
+    const l = r.lessons;
+    add(r.song_id, {
+      kind: "lesson",
+      date: l.date,
+      href: `/spaces/${l.space_id}/lessons/${l.id}`,
+      label: l.groups?.name ? `${l.groups.name} · ${l.spaces?.name ?? ""}` : (l.spaces?.name ?? "שיעור"),
+    });
+  }
+  for (const r of ss.data as unknown as S[]) {
+    if (!r.sessions?.projects) continue;
+    const s = r.sessions;
+    add(r.song_id, {
+      kind: "session",
+      date: s.date,
+      href: `/spaces/private-lessons/projects/${s.projects!.id}/sessions/${s.id}`,
+      label: s.projects!.name,
+    });
+  }
+  for (const list of Object.values(usage)) list.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return usage;
+}

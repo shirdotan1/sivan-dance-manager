@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SongBank } from "@/components/SongBank";
-import { getSongs } from "@/lib/data/queries";
+import { getSongUsage, getSongs } from "@/lib/data/queries";
 
 export const metadata: Metadata = { title: "בנק שירים" };
 
@@ -18,5 +18,6 @@ export default function SongsPage() {
 }
 
 async function SongBankLoader() {
-  return <SongBank songs={await getSongs()} />;
+  const [songs, usage] = await Promise.all([getSongs(), getSongUsage()]);
+  return <SongBank songs={songs} usage={usage} />;
 }

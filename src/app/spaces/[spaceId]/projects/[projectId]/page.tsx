@@ -90,6 +90,33 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         </dl>
       </section>
 
+      <section aria-labelledby="pay-summary-heading" className="card card-section">
+        <h2 id="pay-summary-heading" className="mb-3">
+          סיכום תשלומים
+        </h2>
+        <ul className="divider-list" role="list">
+          {participants.map((p) => {
+            const rows = sessions.flatMap((se) => se.payments.filter((pay) => pay.studentId === p.id));
+            const paidRows = rows.filter((r) => r.paid);
+            const paidSum = paidRows.reduce((sum, r) => sum + r.amount, 0);
+            const owed = rows.filter((r) => !r.paid).reduce((sum, r) => sum + r.amount, 0);
+            return (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+                <StudentLink student={p} className="font-semibold" />
+                <span className="text-sm">
+                  שילמה {formatCurrency(paidSum)} על {paidRows.length} מתוך {rows.length} מפגשים
+                  {owed > 0 ? (
+                    <span className="ms-2 font-semibold text-danger">· חסר {formatCurrency(owed)}</span>
+                  ) : (
+                    rows.length > 0 && <span className="ms-2 font-semibold text-success">· ✓ הכול שולם</span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
       <section aria-labelledby="sessions-heading">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 id="sessions-heading">מפגשים ({sessions.length})</h2>
