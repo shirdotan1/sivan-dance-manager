@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SongTitle } from "@/components/SongText";
-import { StudentList } from "@/components/StudentList";
+import { PoolManager } from "@/components/PoolManager";
 import { getLessonsForSpace, getProjects, getSongs, getSpace } from "@/lib/data/queries";
 import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
@@ -92,10 +92,10 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">
-          כל התלמידות במרחב ({pool.length})
+          מאגר התלמידות ({pool.length})
         </h2>
         <div className="card py-2">
-          <StudentList students={pool} />
+          <PoolManager spaceId={space.id} students={pool} />
         </div>
       </section>
     </>
@@ -150,10 +150,10 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">
-          תלמידות ({pool.length})
+          מאגר התלמידות ({pool.length})
         </h2>
         <div className="card py-2">
-          <StudentList students={pool} />
+          <PoolManager spaceId={space.id} students={pool} />
         </div>
       </section>
     </>

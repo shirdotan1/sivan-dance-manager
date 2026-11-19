@@ -325,6 +325,17 @@
     }
   }
 
+  /* Destructive confirm (delete / remove). */
+  .btn-danger {
+    background: var(--danger);
+    color: var(--on-brand);
+
+    &:hover,
+    &:active {
+      background: color-mix(in oklab, var(--danger), black 15%);
+    }
+  }
+
   .btn-compact {
     padding-inline: 0.875rem;
     font-size: 0.9375rem;
@@ -350,6 +361,29 @@
     padding-inline: 0.25rem;
     /* Cancel the padding visually so the text stays aligned with its column. */
     margin-inline: -0.25rem;
+  }
+
+  /* Native modal confirm dialog. */
+  .confirm-dialog {
+    max-inline-size: min(28rem, calc(100vw - 2rem));
+    margin: auto;
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    color: var(--foreground);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Without these, scrolling over the backdrop scrolls the page behind it. */
+  .confirm-dialog:modal {
+    overscroll-behavior: contain;
+  }
+
+  .confirm-dialog::backdrop {
+    background: rgb(26 18 24 / 0.45);
+    overflow: hidden;
+    overscroll-behavior: contain;
   }
 
   /* Guiding sentence shown instead of an empty list. */
