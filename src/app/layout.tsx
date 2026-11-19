@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SongBankProvider } from "@/components/songs/SongBankProvider";
+import { Suspense } from "react";
+import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -31,12 +31,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
-        <SiteHeader />
-        <SongBankProvider>
-          <main id="content" className="safe-page mx-auto w-full max-w-3xl flex-1 pt-6">
-            {children}
-          </main>
-        </SongBankProvider>
+        <Suspense fallback={<SiteHeaderFallback />}>
+          <SiteHeader />
+        </Suspense>
+        <main id="content" className="safe-page mx-auto w-full max-w-3xl flex-1 pt-6">
+          {children}
+        </main>
       </body>
     </html>
   );
