@@ -311,3 +311,140 @@ export async function getCalendarLegend(): Promise<LegendItem[]> {
     ...(projects.data ?? []).map((p) => ({ id: p.id, name: p.name, color: p.color, context: spaceName.get("private-lessons") ?? "" })),
   ];
 }
+
+// ---------- Open payments (private space) ----------
+
+export interface OpenPayment {
+  sessionId: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  studentId: string;
+  studentName: string;
+  date: string;
+  time: string;
+  /** Unpaid amount (the full amount: payments are paid / not paid). */
+  remaining: number;
+}
+
+/** Every unpaid payment across all projects, oldest session first. */
+export async function getOpenPayments(): Promise<OpenPayment[]> {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase
+    .from("session_payments")
+    .select("amount, student_id, students(name), sessions(id, date, time, projects(id, name, color))")
+    .eq("paid", false)
+    .gt("amount", 0);
+  if (error) fail("open payments", error);
+  type Row = {
+    amount: number;
+    student_id: string;
+    students: { name: string } | null;
+    sessions: { id: string; date: string; time: string; projects: { id: string; name: string; color: string } | null } | null;
+  };
+  return (data as unknown as Row[])
+    .filter((r) => r.sessions?.projects)
+    .map((r) => ({
+      sessionId: r.sessions!.id,
+      projectId: r.sessions!.projects!.id,
+      projectName: r.sessions!.projects!.name,
+      projectColor: r.sessions!.projects!.color,
+      studentId: r.student_id,
+      studentName: r.students?.name ?? "תלמידה",
+      date: r.sessions!.date,
+      time: shortTime(r.sessions!.time),
+      remaining: r.amount,
+    }))
+    .sort((a, b) => {
+      const ka = a.date + a.time, kb = b.date + b.time;
+      return ka < kb ? -1 : ka > kb ? 1 : a.studentName.localeCompare(b.studentName, "he");
+    });
+}
+
+// ---------- Student card ----------
+
+export interface StudentCard {
+  student: Student & { spaceId: string; spaceName: string; spaceKind: "studio" | "private" };
+  groups: { id: string; name: string; color: string }[];
+  lessons: { id: string; date: string; time: string; groupName?: string; color: string; href: string }[];
+  sessions: {
+    id: string;
+    date: string;
+    time: string;
+    projectId: string;
+    projectName: string;
+    color: string;
+    href: string;
+    payment?: { amount: number; paid: boolean };
+  }[];
+  projects: { id: string; name: string; color: string }[];
+}
+
+export async function getStudentCard(studentId: string): Promise<StudentCard | undefined> {
+  if (!isUuid(studentId)) return undefined;
+  const { supabase } = await requireUser();
+  const { data: s, error } = await supabase
+    .from("students")
+    .select("id, name, phone, archived_at, space_id, spaces(name, kind)")
+    .eq("id", studentId)
+    .maybeSingle();
+  if (error) fail("student", error);
+  if (!s) return undefined;
+  const space = (s as unknown as { spaces: { name: string; kind: "studio" | "private" } }).spaces;
+
+  const [groups, lessons, projects, payments] = await Promise.all([
+    supabase.from("group_members").select("groups(id, name, color)").eq("student_id", studentId),
+    supabase.from("lesson_participants").select("lessons(id, space_id, date, time, groups(name, color))").eq("student_id", studentId),
+    supabase.from("project_participants").select("projects(id, name, color, sessions(id, date, time))").eq("student_id", studentId),
+    supabase.from("session_payments").select("session_id, amount, paid").eq("student_id", studentId),
+  ]);
+  for (const r of [groups, lessons, projects, payments]) if (r.error) fail("student card", r.error);
+
+  type G = { groups: { id: string; name: string; color: string } | null };
+  type L = { lessons: { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null } | null };
+  type P = { projects: { id: string; name: string; color: string; sessions: { id: string; date: string; time: string }[] } | null };
+  const payBySession = new Map(
+    (payments.data as { session_id: string; amount: number; paid: boolean }[]).map((p) => [p.session_id, { amount: p.amount, paid: p.paid }]),
+  );
+  const newestFirst = <T extends { date: string; time: string }>(a: T, b: T) => (a.date + a.time < b.date + b.time ? 1 : -1);
+  const projectRows = (projects.data as unknown as P[]).flatMap((r) => (r.projects ? [r.projects] : []));
+
+  return {
+    student: {
+      id: s.id,
+      name: s.name,
+      phone: s.phone,
+      ...(s.archived_at ? { archived: true } : {}),
+      spaceId: s.space_id,
+      spaceName: space?.name ?? "",
+      spaceKind: space?.kind ?? "studio",
+    },
+    groups: (groups.data as unknown as G[]).flatMap((r) => (r.groups ? [r.groups] : [])),
+    lessons: (lessons.data as unknown as L[])
+      .flatMap((r) => (r.lessons ? [r.lessons] : []))
+      .map((l) => ({
+        id: l.id,
+        date: l.date,
+        time: shortTime(l.time),
+        ...(l.groups ? { groupName: l.groups.name } : {}),
+        color: l.groups?.color ?? NEUTRAL_COLOR,
+        href: `/spaces/${l.space_id}/lessons/${l.id}`,
+      }))
+      .sort(newestFirst),
+    sessions: projectRows
+      .flatMap((p) =>
+        p.sessions.map((se) => ({
+          id: se.id,
+          date: se.date,
+          time: shortTime(se.time),
+          projectId: p.id,
+          projectName: p.name,
+          color: p.color,
+          href: `/spaces/private-lessons/projects/${p.id}/sessions/${se.id}`,
+          ...(payBySession.has(se.id) ? { payment: payBySession.get(se.id)! } : {}),
+        })),
+      )
+      .sort(newestFirst),
+    projects: projectRows.map(({ id, name, color }) => ({ id, name, color })),
+  };
+}

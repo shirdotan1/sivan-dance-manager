@@ -118,8 +118,19 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
 async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
   const [projects, songs] = await Promise.all([getProjects(), getSongs()]);
   const pool = activeStudents(space.students);
+  const openTotal = projects
+    .flatMap((p) => p.sessions.flatMap((se) => se.payments))
+    .filter((p) => !p.paid)
+    .reduce((sum, p) => sum + p.amount, 0);
   return (
     <>
+      <Link href={`/spaces/${space.id}/payments`} className="card card-link mb-8 flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">תשלומים פתוחים</span>
+        <span className={`font-bold ${openTotal > 0 ? "text-danger" : "text-success"}`}>
+          {openTotal > 0 ? `${formatCurrency(openTotal)} טרם שולמו` : "✓ הכול שולם"}
+        </span>
+      </Link>
+
       <section aria-labelledby="projects-heading" className="mb-10">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 id="projects-heading">פרויקטים ({projects.length})</h2>
