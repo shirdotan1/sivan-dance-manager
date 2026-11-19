@@ -83,9 +83,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
       </section>
 
       <section aria-labelledby="sessions-heading">
-        <h2 id="sessions-heading" className="mb-3">
-          מפגשים ({sessions.length})
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="sessions-heading">מפגשים ({sessions.length})</h2>
+          <Link href={`/spaces/${space.id}/projects/${project.id}/sessions/new`} className="btn btn-secondary btn-compact max-sm:hidden">
+            + מפגש חדש
+          </Link>
+        </div>
+        {sessions.length === 0 && <p className="empty-state">אין עדיין מפגשים. אפשר ליצור מפגש חדש.</p>}
         <ul className="grid gap-4" role="list">
           {sessions.map((session) => {
             const total = session.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -117,6 +121,12 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           עריכת הפרויקט
         </Link>
         <DeleteProjectButton projectId={project.id} name={project.name} sessions={sessions.length} />
+      </div>
+
+      <div className="action-bar sm:hidden">
+        <Link href={`/spaces/${space.id}/projects/${project.id}/sessions/new`} className="btn btn-primary w-full">
+          + מפגש חדש
+        </Link>
       </div>
     </>
   );
