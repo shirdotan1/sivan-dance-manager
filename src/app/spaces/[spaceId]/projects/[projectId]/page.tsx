@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { DeleteProjectButton } from "@/components/DeleteProjectButton";
 import { SongArtist, SongTitle } from "@/components/SongText";
 import { getProject, getSong, getSpace } from "@/lib/data/queries";
 import { formatCurrency, formatDate, listenUrl, projectTypeLabel } from "@/lib/format";
@@ -14,8 +15,9 @@ export async function generateMetadata({
   return { title: (await getProject(projectId))?.name ?? "פרויקט לא נמצא" };
 }
 
-export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceId]/projects/[projectId]">) {
+export default async function ProjectPage({ params, searchParams }: PageProps<"/spaces/[spaceId]/projects/[projectId]">) {
   const { spaceId, projectId } = await params;
+  const { saved } = await searchParams;
   const [space, project] = await Promise.all([getSpace(spaceId), getProject(projectId)]);
   if (!space || space.kind !== "private" || !project) notFound();
 
@@ -28,7 +30,12 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
       <Breadcrumbs items={[{ label: space.name, href: `/spaces/${space.id}` }, { label: project.name }]} />
 
       <h1 className="mb-2">{project.name}</h1>
-      <p className="mb-6 text-muted">פרויקט {projectTypeLabel[project.type]}</p>
+      <p className="mb-4 text-muted">פרויקט {projectTypeLabel[project.type]}</p>
+      {saved && (
+        <p role="status" className="mb-4 text-sm font-medium text-success">
+          ✓ הפרויקט נשמר.
+        </p>
+      )}
 
       <section aria-labelledby="details-heading" className="card card-section">
         <h2 id="details-heading" className="mb-3">
@@ -104,6 +111,13 @@ export default async function ProjectPage({ params }: PageProps<"/spaces/[spaceI
           })}
         </ul>
       </section>
+
+      <div className="mt-8 mb-6 flex flex-wrap justify-between gap-3">
+        <Link href={`/spaces/${space.id}/projects/${project.id}/edit`} className="btn btn-secondary btn-compact">
+          עריכת הפרויקט
+        </Link>
+        <DeleteProjectButton projectId={project.id} name={project.name} sessions={sessions.length} />
+      </div>
     </>
   );
 }

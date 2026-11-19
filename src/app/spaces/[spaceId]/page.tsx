@@ -121,9 +121,13 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
   return (
     <>
       <section aria-labelledby="projects-heading" className="mb-10">
-        <h2 id="projects-heading" className="mb-3">
-          פרויקטים ({projects.length})
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="projects-heading">פרויקטים ({projects.length})</h2>
+          <Link href={`/spaces/${space.id}/projects/new`} className="btn btn-secondary btn-compact max-sm:hidden">
+            + פרויקט חדש
+          </Link>
+        </div>
+        {projects.length === 0 && <p className="empty-state">אין עדיין פרויקטים. אפשר ליצור פרויקט חדש.</p>}
         <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {projects.map((project) => {
             const mainSong = songs.find((s) => s.id === project.mainSongId);
@@ -169,6 +173,12 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
           <PoolManager spaceId={space.id} students={pool} />
         </div>
       </section>
+
+      <div className="action-bar sm:hidden">
+        <Link href={`/spaces/${space.id}/projects/new`} className="btn btn-primary w-full">
+          + פרויקט חדש
+        </Link>
+      </div>
     </>
   );
 }
