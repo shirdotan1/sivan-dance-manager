@@ -4,11 +4,11 @@ import { useId, useState } from "react";
 import { listenUrl } from "@/lib/format";
 import type { Song } from "@/lib/types";
 import { SongArtist, SongTitle } from "@/components/SongText";
-import { useLocalSongBank, type NewSongInput } from "@/components/songs/useLocalSongBank";
-import { SongLinkField } from "@/components/songs/SongLinkField";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SongForm } from "@/components/songs/SongForm";
+import { createSong, deleteSong, updateSong } from "@/lib/actions/songs";
 
-export function SongBank({ songs: initialSongs }: { songs: Song[] }) {
-  const { songs, addSong } = useLocalSongBank(initialSongs);
+export function SongBank({ songs }: { songs: Song[] }) {
   const searchId = useId();
   const [query, setQuery] = useState("");
 
@@ -21,7 +21,10 @@ export function SongBank({ songs: initialSongs }: { songs: Song[] }) {
 
   return (
     <>
-      <AddSongForm addSong={addSong} />
+      <details className="disclosure mb-8">
+        <summary>+ הוספת שיר לבנק</summary>
+        <SongForm action={createSong} submitLabel="הוספה לבנק" label="הוספת שיר לבנק" />
+      </details>
 
       <search className="mb-4 block">
         <form onSubmit={(e) => e.preventDefault()}>
@@ -88,92 +91,43 @@ export function SongBank({ songs: initialSongs }: { songs: Song[] }) {
                   </p>
                 )}
               </div>
-              <a
-                href={listenUrl(song)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary btn-compact"
-              >
-                {song.link ? "האזנה" : "חיפוש ביוטיוב"}
-                <span className="visually-hidden">
-                  {" "}
-                  ל־<SongTitle song={song} /> (נפתח בלשונית חדשה)
-                </span>
-              </a>
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={listenUrl(song)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-compact"
+                >
+                  {song.link ? "האזנה" : "חיפוש ביוטיוב"}
+                  <span className="visually-hidden">
+                    {" "}
+                    ל־<SongTitle song={song} /> (נפתח בלשונית חדשה)
+                  </span>
+                </a>
+                <ConfirmDialog
+                  triggerLabel="מחיקה"
+                  triggerContext={`של ${song.title}`}
+                  title={`למחוק את ״${song.title}״ מהבנק?`}
+                  description={<p>השיר יוסר גם מכל השיעורים והמפגשים שבהם הוא מופיע.</p>}
+                  confirmLabel="מחיקת השיר"
+                  onConfirm={() => deleteSong(song.id)}
+                />
+              </div>
+              <details className="disclosure basis-full">
+                <summary>
+                  עריכה<span className="visually-hidden"> של {song.title}</span>
+                </summary>
+                <SongForm
+                  action={updateSong.bind(null, song.id)}
+                  song={song}
+                  submitLabel="שמירת השיר"
+                  label={`עריכת ${song.title}`}
+                />
+              </details>
             </li>
           ))}
         </ul>
       )}
     </>
-  );
-}
-
-function AddSongForm({ addSong }: { addSong: (input: NewSongInput) => Song }) {
-  const id = useId();
-  const [status, setStatus] = useState("");
-  // Remount the fields after a successful add to clear them and their error state.
-  const [formKey, setFormKey] = useState(0);
-
-  return (
-    <details className="disclosure mb-8">
-      <summary>+ הוספת שיר לבנק</summary>
-      <form
-        key={formKey}
-        aria-label="הוספת שיר לבנק"
-        className="grid gap-4 px-4 pb-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          const song = addSong({
-            title: String(data.get("title") ?? ""),
-            artist: String(data.get("artist") ?? ""),
-            style: String(data.get("style") ?? ""),
-            link: String(data.get("link") ?? ""),
-            note: String(data.get("note") ?? ""),
-          });
-          setStatus(`״${song.title}״ נוסף לבנק השירים.`);
-          setFormKey((k) => k + 1);
-        }}
-      >
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${id}-name`} className="font-medium">
-            שם השיר <span aria-hidden="true">*</span>
-          </label>
-          <input id={`${id}-name`} name="title" required dir="auto" autoComplete="off" enterKeyHint="next" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label htmlFor={`${id}-artist`} className="font-medium">
-              מבצע/ת
-            </label>
-            <input id={`${id}-artist`} name="artist" dir="auto" autoComplete="off" enterKeyHint="next" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={`${id}-style`} className="font-medium">
-              סגנון
-            </label>
-            <input id={`${id}-style`} name="style" autoComplete="off" enterKeyHint="next" />
-          </div>
-        </div>
-        <SongLinkField />
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${id}-note`} className="font-medium">
-            הערה אישית
-          </label>
-          <textarea id={`${id}-note`} name="note" rows={2} dir="auto" />
-        </div>
-        <div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-          >
-            הוספה לבנק
-          </button>
-        </div>
-      </form>
-      <p role="status" className="px-4 pb-3 text-sm text-success empty:hidden">
-        {status}
-      </p>
-    </details>
   );
 }

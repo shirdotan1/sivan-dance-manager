@@ -8,7 +8,15 @@ import { SONG_LINK_PATTERN } from "@/lib/format";
  * user leaves the field (or submits), cleared as soon as it's fixed, and
  * linked via aria-describedby only while visible.
  */
-export function SongLinkField({ name = "link", className = "" }: { name?: string; className?: string }) {
+export function SongLinkField({
+  name = "link",
+  className = "",
+  defaultValue,
+}: {
+  name?: string;
+  className?: string;
+  defaultValue?: string;
+}) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -29,6 +37,7 @@ export function SongLinkField({ name = "link", className = "" }: { name?: string
         inputMode="url"
         dir="ltr"
         pattern={SONG_LINK_PATTERN}
+        defaultValue={defaultValue}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
