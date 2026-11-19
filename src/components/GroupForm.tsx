@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useId } from "react";
-import { initialActionState, type ActionState } from "@/lib/actions/result";
+import { useId } from "react";
+import type { ActionState } from "@/lib/actions/result";
+import { useActionForm } from "@/lib/actions/useActionForm";
 import type { Group, Student } from "@/lib/types";
 
 interface GroupFormProps {
@@ -15,13 +16,13 @@ interface GroupFormProps {
 /** Group name + members (checkboxes from the space's active pool). */
 export function GroupForm({ action, pool, group, submitLabel }: GroupFormProps) {
   const id = useId();
-  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const { state, onSubmit, pending } = useActionForm(action);
 
   return (
     <>
       <form
         key={group ? undefined : state.done}
-        action={formAction}
+        onSubmit={onSubmit}
         aria-label={group ? `עריכת הקבוצה ${group.name}` : "קבוצה חדשה"}
         className="grid gap-4 px-4 pb-4"
       >

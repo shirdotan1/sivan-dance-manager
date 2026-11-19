@@ -1,15 +1,15 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useId } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { addStudent, removeStudentFromPool } from "@/lib/actions/students";
-import { initialActionState } from "@/lib/actions/result";
+import { useActionForm } from "@/lib/actions/useActionForm";
 import type { Student } from "@/lib/types";
 
 /** The space's pool: list with tap-to-call phones, remove (with confirm), and add. */
 export function PoolManager({ spaceId, students }: { spaceId: string; students: Student[] }) {
   const id = useId();
-  const [state, action, pending] = useActionState(addStudent.bind(null, spaceId), initialActionState);
+  const { state, onSubmit, pending } = useActionForm(addStudent.bind(null, spaceId));
 
   return (
     <>
@@ -50,7 +50,7 @@ export function PoolManager({ spaceId, students }: { spaceId: string; students: 
 
       <details className="disclosure mt-4">
         <summary>+ הוספת תלמידה למאגר</summary>
-        <form key={state.done} action={action} aria-label="הוספת תלמידה למאגר" className="grid gap-3 px-4 pb-4">
+        <form key={state.done} onSubmit={onSubmit} aria-label="הוספת תלמידה למאגר" className="grid gap-3 px-4 pb-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <label htmlFor={`${id}-name`} className="font-medium">

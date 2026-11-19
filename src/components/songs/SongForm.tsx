@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useId } from "react";
 import { SongLinkField } from "@/components/songs/SongLinkField";
-import { initialActionState, type ActionState } from "@/lib/actions/result";
+import type { ActionState } from "@/lib/actions/result";
+import { useActionForm } from "@/lib/actions/useActionForm";
 import type { Song } from "@/lib/types";
 
 interface SongFormProps {
@@ -15,11 +16,11 @@ interface SongFormProps {
 /** Full song form (bank page): title, artist, style, link, personal note. */
 export function SongForm({ action, song, submitLabel, label }: SongFormProps) {
   const id = useId();
-  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const { state, onSubmit, pending } = useActionForm(action);
 
   return (
     <>
-      <form key={song ? undefined : state.done} action={formAction} aria-label={label} className="grid gap-4 px-4 pb-4">
+      <form key={song ? undefined : state.done} onSubmit={onSubmit} aria-label={label} className="grid gap-4 px-4 pb-4">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-title`} className="font-medium">
             שם השיר <span aria-hidden="true">*</span>

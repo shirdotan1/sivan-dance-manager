@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useId } from "react";
 import { MediaField } from "@/components/forms/MediaField";
 import { ParticipantsField } from "@/components/forms/ParticipantsField";
 import { SongsField } from "@/components/forms/SongsField";
-import { initialActionState, type ActionState } from "@/lib/actions/result";
+import type { ActionState } from "@/lib/actions/result";
+import { useActionForm } from "@/lib/actions/useActionForm";
 import type { Lesson, Song, StudioSpace } from "@/lib/types";
 
 export interface LessonDraft {
@@ -28,10 +29,10 @@ interface LessonFormProps {
 /** One form for new / edit / duplicate lesson. Everything is saved with one submit. */
 export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFormProps) {
   const id = useId();
-  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const { state, onSubmit, pending } = useActionForm(action);
 
   return (
-    <form action={formAction} className="pb-2">
+    <form onSubmit={onSubmit} className="pb-2">
       <fieldset className="card card-section">
         <legend className="card-legend">מתי ומי</legend>
         <div className="grid gap-4 sm:grid-cols-3">

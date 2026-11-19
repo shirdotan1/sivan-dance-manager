@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useId } from "react";
-import { initialActionState, type ActionState } from "@/lib/actions/result";
+import { useId } from "react";
+import type { ActionState } from "@/lib/actions/result";
+import { useActionForm } from "@/lib/actions/useActionForm";
 import { activeStudents } from "@/lib/lookup";
 import type { DanceProject, Song, Student } from "@/lib/types";
 
@@ -16,12 +17,12 @@ interface ProjectFormProps {
 /** Project: dance name, solo/group, participants (from the private pool), main song. */
 export function ProjectForm({ action, pool, bank, project, submitLabel }: ProjectFormProps) {
   const id = useId();
-  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const { state, onSubmit, pending } = useActionForm(action);
   // Active pool, plus current participants even if they were removed from the pool since.
   const choices = pool.filter((s) => !s.archived || project?.participantIds.includes(s.id));
 
   return (
-    <form action={formAction} className="pb-2">
+    <form onSubmit={onSubmit} className="pb-2">
       <fieldset className="card card-section">
         <legend className="card-legend">פרטי הפרויקט</legend>
         <div className="grid gap-4">
