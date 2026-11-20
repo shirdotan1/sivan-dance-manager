@@ -7,7 +7,7 @@ import { signOut } from "@/app/login/actions";
 const links = [
   { href: "/", label: "המרחבים שלי" },
   { href: "/calendar", label: "לוח שנה" },
-  { href: "/songs", label: "בנק שירים" },
+  { href: "/materials", label: "בנק חומרים" },
 ] as const;
 
 export function SiteHeader() {
