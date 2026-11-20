@@ -1,17 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { safeNext } from "@/lib/safe-next";
 import { createClient } from "@/lib/supabase/server";
 
 export interface LoginState {
   error?: string;
   email?: string;
-}
-
-/** Only allow redirects back into this site (no open redirects). */
-function safeNext(next: FormDataEntryValue | null): string {
-  const value = typeof next === "string" ? next : "";
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
 
 export async function signIn(_prev: LoginState, formData: FormData): Promise<LoginState> {
