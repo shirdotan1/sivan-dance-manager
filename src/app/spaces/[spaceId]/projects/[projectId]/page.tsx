@@ -99,14 +99,18 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             const rows = sessions.flatMap((se) => se.payments.filter((pay) => pay.studentId === p.id));
             const paidRows = rows.filter((r) => r.paid);
             const paidSum = paidRows.reduce((sum, r) => sum + r.amount, 0);
-            const owed = rows.filter((r) => !r.paid).reduce((sum, r) => sum + r.amount, 0);
+            const unpaidRows = rows.filter((r) => !r.paid);
+            const owed = unpaidRows.reduce((sum, r) => sum + r.amount, 0);
             return (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                 <StudentLink student={p} className="font-semibold" />
                 <span className="text-sm">
                   שילמה {formatCurrency(paidSum)} על {paidRows.length} מתוך {rows.length} מפגשים
-                  {owed > 0 ? (
-                    <span className="ms-2 font-semibold text-danger">· חסר {formatCurrency(owed)}</span>
+                  {/* Status follows the paid flags, not amounts: an unpaid ₪0 row is still unpaid. */}
+                  {unpaidRows.length > 0 ? (
+                    <span className="ms-2 font-semibold text-danger">
+                      · {owed > 0 ? `חסר ${formatCurrency(owed)}` : `${unpaidRows.length} טרם סומנו כשולם`}
+                    </span>
                   ) : (
                     rows.length > 0 && <span className="ms-2 font-semibold text-success">· ✓ הכול שולם</span>
                   )}
@@ -129,6 +133,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           {sessions.map((session) => {
             const total = session.payments.reduce((sum, p) => sum + p.amount, 0);
             const paid = session.payments.filter((p) => p.paid).reduce((sum, p) => sum + p.amount, 0);
+            const unpaidCount = session.payments.filter((p) => !p.paid).length;
+            // "Paid in full" only when every payment is marked paid (not when amounts happen to match).
+            const allPaid = session.payments.length > 0 && unpaidCount === 0;
             return (
               <li key={session.id}>
                 <Link
@@ -142,7 +149,11 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
                     </span>
                   </span>
                   <span className="text-sm">
-                    {paid === total ? "✓ שולם במלואו" : `שולמו ${formatCurrency(paid)} מתוך ${formatCurrency(total)}`}
+                    {session.payments.length === 0
+                      ? "אין תשלומים"
+                      : allPaid
+                        ? "✓ שולם במלואו"
+                        : `שולמו ${formatCurrency(paid)} מתוך ${formatCurrency(total)} · ${unpaidCount} טרם סומנו`}
                   </span>
                 </Link>
               </li>
