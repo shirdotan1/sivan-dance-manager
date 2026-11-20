@@ -4,6 +4,7 @@ import { useId } from "react";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
 import { materialKindLabel } from "@/lib/format";
+import { FocusOnHash } from "@/components/FocusOnHash";
 import { activeStudents } from "@/lib/lookup";
 import type { Project, Material, Student } from "@/lib/types";
 
@@ -77,7 +78,8 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
         </div>
       </fieldset>
 
-      <fieldset className="card card-section">
+      <fieldset id="participants" tabIndex={-1} className="card card-section">
+        <FocusOnHash targetId="participants" />
         <legend className="card-legend">משתתפות</legend>
         {activeStudents(pool).length === 0 ? (
           <p className="empty-state">אין תלמידות במאגר השיעורים הפרטיים. אפשר להוסיף במאגר בדף המרחב.</p>

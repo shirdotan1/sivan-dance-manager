@@ -64,6 +64,19 @@ export default async function SessionPage({ params, searchParams }: Props) {
         next={later && { href: href(later.id), date: later.date }}
       />
 
+      <p className="mb-4 flex justify-end">
+        <Link
+          href={`/spaces/${space.id}/projects/${project.id}/edit#participants`}
+          className="btn btn-secondary btn-compact"
+          aria-describedby="participants-edit-hint"
+        >
+          עריכת משתתפות
+        </Link>
+      </p>
+      <p id="participants-edit-hint" className="visually-hidden">
+        המשתתפות שייכות לפרויקט; העריכה נפתחת בעריכת הפרויקט.
+      </p>
+
       <PaymentsQuick sessionId={session.id} payments={session.payments} students={space.students} />
       <MaterialsView materials={materialsByIds(bank, session.materialIds)} title="חומרים במפגש" />
       <NotesView notes={session.notes} />

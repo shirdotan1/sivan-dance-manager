@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { FocusOnHash } from "@/components/FocusOnHash";
 import { activeStudents } from "@/lib/lookup";
 import type { Group, Student } from "@/lib/types";
 
@@ -89,7 +90,8 @@ export function ParticipantsField({ pool, groups = [], initialIds }: Participant
   };
 
   return (
-    <fieldset className="card card-section">
+    <fieldset id="participants" tabIndex={-1} className="card card-section">
+      <FocusOnHash targetId="participants" />
       <legend className="card-legend">משתתפות ({entries.length})</legend>
       <input type="hidden" name="participants" value={JSON.stringify(entries.map((e) => (isExisting(e) ? { id: e.id } : { name: e.name })))} />
 

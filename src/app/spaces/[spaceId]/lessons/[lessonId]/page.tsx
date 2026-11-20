@@ -66,6 +66,11 @@ export default async function LessonPage({ params, searchParams }: Props) {
       />
 
       <ParticipantsView students={studentsByIds(space.students, lesson.participantIds)} />
+      <p className="-mt-6 mb-8 flex justify-end">
+        <Link href={`${base}/edit#participants`} className="btn btn-secondary btn-compact">
+          עריכת משתתפות
+        </Link>
+      </p>
       <MaterialsView materials={materialsByIds(bank, lesson.materialIds)} title="חומרים בשיעור" />
       <NotesView notes={lesson.notes} />
       <MediaView media={lesson.media} />
