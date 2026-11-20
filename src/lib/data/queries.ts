@@ -1,6 +1,7 @@
 import "server-only";
 import { requireUser } from "@/lib/supabase/server";
-import { shortTime } from "@/lib/format";
+import { connection } from "next/server";
+import { addDays, nowTimeIsrael, shortTime, todayIso } from "@/lib/format";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
   Project,
@@ -496,4 +497,18 @@ export async function getMaterialUsage(): Promise<Record<string, MaterialUse[]>>
   }
   for (const list of Object.values(usage)) list.sort((a, b) => (a.date < b.date ? 1 : -1));
   return usage;
+}
+
+// ---------- Next up (home) ----------
+
+/**
+ * The next lesson or session from now (Israel time): later today or on a
+ * coming day, within the next ~4 months. Undefined when nothing is planned.
+ */
+export async function getNextEvent(): Promise<CalendarEvent | undefined> {
+  await connection(); // "now" is request-time, never prerendered
+  const today = todayIso();
+  const now = nowTimeIsrael();
+  const events = await getCalendarEvents(today, addDays(today, 120));
+  return events.find((e) => e.date > today || e.time >= now);
 }

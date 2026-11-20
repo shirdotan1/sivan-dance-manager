@@ -124,6 +124,11 @@ export function shortTime(time: string): string {
   return time.slice(0, 5);
 }
 
+/** Current wall-clock time in Israel as HH:MM. */
+export function nowTimeIsrael(): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+}
+
 /** Today's date in Israel as YYYY-MM-DD. */
 export function todayIso(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());

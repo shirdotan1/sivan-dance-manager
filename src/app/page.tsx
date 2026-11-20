@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getLessonCounts, getProjects, getSpaces } from "@/lib/data/queries";
+import { NextUp } from "@/components/NextUp";
+import { getLessonCounts, getNextEvent, getOpenPayments, getProjects, getSpaces } from "@/lib/data/queries";
 import { activeStudents } from "@/lib/lookup";
 
 export default function HomePage() {
@@ -34,7 +35,7 @@ export default function HomePage() {
           <h2 id="backup-heading" className="mb-1">
             גיבוי
           </h2>
-          <p className="text-sm text-muted">כל הנתונים — תלמידות, שיעורים, פרויקטים, תשלומים ושירים — בקובץ JSON אחד.</p>
+          <p className="text-sm text-muted">כל הנתונים — משתתפות, שיעורים, פרויקטים, תשלומים וחומרים — בקובץ JSON אחד.</p>
         </div>
         {/* A plain link: the route answers with a file download. */}
         <a href="/export" download className="btn btn-secondary">
@@ -46,9 +47,17 @@ export default function HomePage() {
 }
 
 async function SpaceCards() {
-  const [spaces, lessonCounts, projects] = await Promise.all([getSpaces(), getLessonCounts(), getProjects()]);
+  const [spaces, lessonCounts, projects, next, open] = await Promise.all([
+    getSpaces(),
+    getLessonCounts(),
+    getProjects(),
+    getNextEvent(),
+    getOpenPayments(),
+  ]);
+  const openTotal = open.reduce((sum, p) => sum + p.remaining, 0);
   return (
     <>
+      <NextUp next={next} openTotal={openTotal} />
       {/* One column on phones, all three spaces in a row once there's room
           (no 2+1 in-between that leaves one card alone). */}
       <ul className="grid gap-5 md:grid-cols-3" role="list">
