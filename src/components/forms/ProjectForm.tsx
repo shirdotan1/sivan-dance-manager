@@ -5,17 +5,17 @@ import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
 import { materialKindLabel } from "@/lib/format";
 import { activeStudents } from "@/lib/lookup";
-import type { DanceProject, Material, Student } from "@/lib/types";
+import type { Project, Material, Student } from "@/lib/types";
 
 interface ProjectFormProps {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   pool: Student[];
   bank: Material[];
-  project?: DanceProject;
+  project?: Project;
   submitLabel: string;
 }
 
-/** Project: dance name, solo/group, participants (from the private pool), main song. */
+/** Project: name, solo/group, participants (from the private pool), optional main material. */
 export function ProjectForm({ action, pool, bank, project, submitLabel }: ProjectFormProps) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(action);
@@ -29,9 +29,12 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
         <div className="grid gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-name`} className="font-medium">
-              שם הריקוד <span aria-hidden="true">*</span>
+              שם הפרויקט <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-name`} name="name" required dir="auto" autoComplete="off" defaultValue={project?.name} />
+            <span id={`${id}-name-hint`} className="text-sm text-muted">
+              למשל: הכנה לבחינה, סולו לתחרות, תוכנית אימון אישית
+            </span>
+            <input id={`${id}-name`} name="name" required aria-describedby={`${id}-name-hint`} dir="auto" autoComplete="off" defaultValue={project?.name} />
           </div>
 
           <fieldset>

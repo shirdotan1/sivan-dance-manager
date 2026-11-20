@@ -9,13 +9,13 @@ import { nextColor } from "@/lib/data/colors";
 const SPACE = "private-lessons";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Creates (projectId = null) or updates a private dance project. */
+/** Creates (projectId = null) or updates a private project (any lesson or training goal). */
 export async function saveProject(projectId: string | null, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = field(formData, "name");
   const type = field(formData, "type");
   const mainMaterialId = field(formData, "mainMaterialId");
   const participants = fields(formData, "participant").filter((id) => UUID_RE.test(id));
-  if (!name) return { error: "יש להזין שם לריקוד." };
+  if (!name) return { error: "יש להזין שם לפרויקט." };
   if (type !== "solo" && type !== "group") return { error: "יש לבחור סולו או קבוצתי." };
   if (participants.length === 0) return { error: "יש לבחור לפחות משתתפת אחת." };
   if (type === "solo" && participants.length > 1) return { error: "בסולו יש משתתפת אחת. לכמה משתתפות — לבחור ״קבוצתי״." };

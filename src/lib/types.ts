@@ -101,7 +101,7 @@ export interface Lesson {
 
 export type ProjectType = "solo" | "group";
 
-/** A rehearsal session of a private dance project. */
+/** A session of a private project. */
 export interface Session {
   id: string;
   date: string;
@@ -113,8 +113,8 @@ export interface Session {
   payments: Payment[];
 }
 
-/** A private project: preparing one choreography, solo or group. */
-export interface DanceProject {
+/** A private project: one goal worked on over several sessions (a piece, an exam, a training plan), solo or group. */
+export interface Project {
   id: string;
   name: string;
   type: ProjectType;

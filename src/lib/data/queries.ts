@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { shortTime } from "@/lib/format";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
-  DanceProject,
+  Project,
   Group,
   Lesson,
   MediaItem,
@@ -123,7 +123,7 @@ function mapSession(r: SessionRow): Session {
   };
 }
 
-function mapProject(r: ProjectRow): DanceProject {
+function mapProject(r: ProjectRow): Project {
   return {
     id: r.id,
     name: r.name,
@@ -199,14 +199,14 @@ export async function getLesson(spaceId: string, lessonId: string): Promise<Less
   return data ? mapLesson(data as unknown as LessonRow) : undefined;
 }
 
-export async function getProjects(): Promise<DanceProject[]> {
+export async function getProjects(): Promise<Project[]> {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).order("created_at").order("id");
   if (error) fail("projects", error);
   return (data as unknown as ProjectRow[]).map(mapProject);
 }
 
-export async function getProject(projectId: string): Promise<DanceProject | undefined> {
+export async function getProject(projectId: string): Promise<Project | undefined> {
   if (!isUuid(projectId)) return undefined;
   const { supabase } = await requireUser();
   const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).eq("id", projectId).maybeSingle();
