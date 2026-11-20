@@ -10,7 +10,7 @@ export function DeleteProjectButton({ projectId, name, sessions }: { projectId: 
       title={`למחוק את ״${name}״?`}
       description={
         <p>
-          הפרויקט יימחק יחד עם {sessions} המפגשים שלו והתשלומים שנרשמו בהם. התלמידות והשירים נשארים. אי אפשר לבטל את זה.
+          הפרויקט יימחק יחד עם {sessions} המפגשים שלו והתשלומים שנרשמו בהם. התלמידות והחומרים בבנק נשארים. אי אפשר לבטל את זה.
         </p>
       }
       confirmLabel="מחיקת הפרויקט"

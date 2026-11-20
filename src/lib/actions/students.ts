@@ -74,13 +74,18 @@ export async function updateStudent(studentId: string, _prev: ActionState, formD
     .maybeSingle();
   if (findError || !student) return { error: "התלמידה לא נמצאה." };
 
-  const { data: clash } = await supabase
+  // Never rename without a completed check. limit(1), not maybeSingle():
+  // two existing students may already share the name (active + removed).
+  const { data: clashes, error: clashError } = await supabase
     .from("students")
     .select("id, archived_at")
     .eq("space_id", student.space_id)
     .eq("name", name)
     .neq("id", studentId)
-    .maybeSingle();
+    .order("archived_at", { ascending: false, nullsFirst: true })
+    .limit(1);
+  if (clashError) return { error: "בדיקת השם נכשלה, והשם לא שונה. כדאי לנסות שוב." };
+  const clash = clashes[0];
   if (clash) {
     return {
       error: clash.archived_at

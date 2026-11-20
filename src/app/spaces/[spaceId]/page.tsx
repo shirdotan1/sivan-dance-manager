@@ -87,7 +87,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
                     </span>
                   </span>
                   <span className="text-sm">
-                    {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} שירים
+                    {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} חומרים
                   </span>
                 </Link>
               </li>

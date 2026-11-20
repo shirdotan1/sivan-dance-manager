@@ -44,8 +44,9 @@ export function parseMaterials(raw: FormDataEntryValue | null): ParsedMaterial[]
   for (const v of parseJsonArray(raw)) {
     if (v && typeof v === "object" && "id" in v && typeof v.id === "string" && UUID_RE.test(v.id)) out.push({ id: v.id });
     else if (v && typeof v === "object" && "title" in v) {
-      const kind = "kind" in v && isMaterialKind(v.kind) ? v.kind : "song";
       const title = typeof v.title === "string" ? v.title.trim().slice(0, 200) : "";
+      if (!("kind" in v) || !isMaterialKind(v.kind)) return { error: `סוג החומר ״${title || "ללא שם"}״ לא מוכר. יש לבחור שיר, סרטון, קישור או הערה.` };
+      const kind = v.kind;
       const link = "link" in v && typeof v.link === "string" ? v.link.trim() : "";
       const linkError = materialLinkError(kind, link);
       if (linkError) return { error: `${materialKindLabel[kind]} ״${title || link}״: ${linkError}` };

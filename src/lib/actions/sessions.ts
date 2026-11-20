@@ -75,7 +75,7 @@ export async function saveSession(
     if (ins.error) return { error: "שמירת התשלומים נכשלה." };
   }
   const err = await replaceMaterialsAndMedia(supabase, { session_id: id! }, materialIds, parseMedia(formData.get("media")));
-  if (err) return { error: "שמירת השירים או המדיה נכשלה." };
+  if (err) return { error: "שמירת החומרים או המדיה נכשלה." };
 
   redirect(`/spaces/${SPACE}/projects/${projectId}/sessions/${id}?saved=1`);
 }

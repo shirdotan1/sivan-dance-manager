@@ -49,7 +49,7 @@ export default async function NewLessonPage({ params, searchParams }: PageProps<
       </h1>
       <p className="mb-6 text-muted">
         {space.name}
-        {source && " · הועתקו המשתתפות והשירים מהשיעור הקודם"}
+        {source && " · הועתקו המשתתפות והחומרים מהשיעור הקודם"}
       </p>
       <LessonForm
         action={saveLesson.bind(null, space.id, null)}

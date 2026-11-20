@@ -8,7 +8,7 @@ export function DeleteSessionButton({ projectId, sessionId, label }: { projectId
     <ConfirmDialog
       triggerLabel="מחיקת המפגש"
       title="למחוק את המפגש?"
-      description={<p>המפגש של {label} יימחק עם התשלומים, השירים, ההערות והמדיה שלו.</p>}
+      description={<p>המפגש של {label} יימחק עם התשלומים, החומרים, ההערות והמדיה שלו.</p>}
       confirmLabel="מחיקת המפגש"
       onConfirm={() => deleteSession(projectId, sessionId)}
     />

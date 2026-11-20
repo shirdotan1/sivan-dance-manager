@@ -39,7 +39,9 @@ export function MaterialLinkField({
   const id = useId();
   const [error, setError] = useState("");
   // A field outside the submitted data (name="", e.g. inline quick-add inside
-  // a bigger form) must never block that form: no required, no custom validity.
+  // a bigger form) must never block that form: no required, no custom
+  // validity, and type="text" so the browser's own URL check (typeMismatch)
+  // doesn't apply either. Its rules run only when the material is added.
   const inForm = name !== "";
   const required = inForm && (kind === "video" || kind === "link");
 
@@ -70,7 +72,7 @@ export function MaterialLinkField({
           inputRef?.(el);
         }}
         name={name || undefined}
-        type="url"
+        type={inForm ? "url" : "text"}
         inputMode="url"
         dir="ltr"
         required={required}
