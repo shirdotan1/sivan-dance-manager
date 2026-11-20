@@ -3,17 +3,17 @@
 import { useId } from "react";
 import { MediaField } from "@/components/forms/MediaField";
 import { ParticipantsField } from "@/components/forms/ParticipantsField";
-import { SongsField } from "@/components/forms/SongsField";
+import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
-import type { Lesson, Song, StudioSpace } from "@/lib/types";
+import type { Lesson, Material, StudioSpace } from "@/lib/types";
 
 export interface LessonDraft {
   date: string;
   time: string;
   groupId?: string;
   participantIds: string[];
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: Lesson["media"];
 }
@@ -21,7 +21,7 @@ export interface LessonDraft {
 interface LessonFormProps {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   space: StudioSpace;
-  bank: Song[];
+  bank: Material[];
   draft: LessonDraft;
   submitLabel: string;
 }
@@ -68,7 +68,7 @@ export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFo
       </fieldset>
 
       <ParticipantsField pool={space.students} groups={space.groups} initialIds={draft.participantIds} />
-      <SongsField bank={bank} initialIds={draft.songIds} legend="שירים בשיעור" />
+      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים בשיעור" />
 
       <fieldset className="card card-section">
         <legend className="card-legend">הערות</legend>

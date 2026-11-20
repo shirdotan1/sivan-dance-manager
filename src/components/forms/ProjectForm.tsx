@@ -3,13 +3,14 @@
 import { useId } from "react";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
+import { materialKindLabel } from "@/lib/format";
 import { activeStudents } from "@/lib/lookup";
-import type { DanceProject, Song, Student } from "@/lib/types";
+import type { DanceProject, Material, Student } from "@/lib/types";
 
 interface ProjectFormProps {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   pool: Student[];
-  bank: Song[];
+  bank: Material[];
   project?: DanceProject;
   submitLabel: string;
 }
@@ -59,13 +60,13 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
 
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-song`} className="font-medium">
-              שיר ראשי
+              חומר מרכזי <span className="font-normal text-muted">(לא חובה)</span>
             </label>
-            <select id={`${id}-song`} name="mainSongId" defaultValue={project?.mainSongId ?? ""}>
+            <select id={`${id}-song`} name="mainMaterialId" defaultValue={project?.mainMaterialId ?? ""}>
               <option value="">עדיין לא נבחר</option>
-              {bank.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.artist ? `${s.title} — ${s.artist}` : s.title}
+              {bank.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {`${materialKindLabel[m.kind]}: ${m.title}${m.kind === "song" && m.artist ? ` — ${m.artist}` : ""}`}
                 </option>
               ))}
             </select>

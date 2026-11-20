@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteLessonButton } from "@/components/DeleteLessonButton";
 import { PrevNext } from "@/components/PrevNext";
-import { MediaView, NotesView, ParticipantsView, SongsView } from "@/components/view/EventView";
-import { getLesson, getLessonsForSpace, getSongs, getSpace } from "@/lib/data/queries";
+import { MediaView, NotesView, ParticipantsView, MaterialsView } from "@/components/view/EventView";
+import { getLesson, getLessonsForSpace, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
-import { songsByIds, studentsByIds } from "@/lib/lookup";
+import { materialsByIds, studentsByIds } from "@/lib/lookup";
 
 type Props = PageProps<"/spaces/[spaceId]/lessons/[lessonId]">;
 
@@ -24,7 +24,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
   const [space, lesson, bank, all] = await Promise.all([
     getSpace(spaceId),
     getLesson(spaceId, lessonId),
-    getSongs(),
+    getMaterials(),
     getLessonsForSpace(spaceId),
   ]);
   if (!space || space.kind !== "studio" || !lesson) notFound();
@@ -66,7 +66,7 @@ export default async function LessonPage({ params, searchParams }: Props) {
       />
 
       <ParticipantsView students={studentsByIds(space.students, lesson.participantIds)} />
-      <SongsView songs={songsByIds(bank, lesson.songIds)} title="שירים בשיעור" />
+      <MaterialsView materials={materialsByIds(bank, lesson.materialIds)} title="חומרים בשיעור" />
       <NotesView notes={lesson.notes} />
       <MediaView media={lesson.media} />
 

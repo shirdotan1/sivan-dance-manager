@@ -3,16 +3,16 @@
 import { useId } from "react";
 import { MediaField } from "@/components/forms/MediaField";
 import { PaymentsField } from "@/components/forms/PaymentsField";
-import { SongsField } from "@/components/forms/SongsField";
+import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
-import type { MediaItem, Payment, Song, Student } from "@/lib/types";
+import type { MediaItem, Payment, Material, Student } from "@/lib/types";
 
 export interface SessionDraft {
   date: string;
   time: string;
   payments: Payment[];
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: MediaItem[];
 }
@@ -21,7 +21,7 @@ interface SessionFormProps {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   pool: Student[];
   participantIds: string[];
-  bank: Song[];
+  bank: Material[];
   draft: SessionDraft;
   submitLabel: string;
 }
@@ -52,7 +52,7 @@ export function SessionForm({ action, pool, participantIds, bank, draft, submitL
       </fieldset>
 
       <PaymentsField students={pool} participantIds={participantIds} initial={draft.payments} />
-      <SongsField bank={bank} initialIds={draft.songIds} legend="שירים במפגש" />
+      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים במפגש" />
 
       <fieldset className="card card-section">
         <legend className="card-legend">הערות</legend>

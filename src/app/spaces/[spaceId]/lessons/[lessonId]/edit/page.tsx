@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LessonForm } from "@/components/forms/LessonForm";
 import { saveLesson } from "@/lib/actions/lessons";
-import { getLesson, getSongs, getSpace } from "@/lib/data/queries";
+import { getLesson, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "עריכת שיעור" };
 
 export default async function EditLessonPage({ params }: PageProps<"/spaces/[spaceId]/lessons/[lessonId]/edit">) {
   const { spaceId, lessonId } = await params;
-  const [space, lesson, bank] = await Promise.all([getSpace(spaceId), getLesson(spaceId, lessonId), getSongs()]);
+  const [space, lesson, bank] = await Promise.all([getSpace(spaceId), getLesson(spaceId, lessonId), getMaterials()]);
   if (!space || space.kind !== "studio" || !lesson) notFound();
 
   return (

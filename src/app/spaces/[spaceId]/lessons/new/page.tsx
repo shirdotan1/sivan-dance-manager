@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LessonForm, type LessonDraft } from "@/components/forms/LessonForm";
 import { saveLesson } from "@/lib/actions/lessons";
-import { getLesson, getLessonsForSpace, getSongs, getSpace } from "@/lib/data/queries";
+import { getLesson, getLessonsForSpace, getMaterials, getSpace } from "@/lib/data/queries";
 import { addDays, todayIso } from "@/lib/format";
 
 export const metadata: Metadata = { title: "שיעור חדש" };
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "שיעור חדש" };
 export default async function NewLessonPage({ params, searchParams }: PageProps<"/spaces/[spaceId]/lessons/new">) {
   const { spaceId } = await params;
   const { date, from } = await searchParams;
-  const [space, bank] = await Promise.all([getSpace(spaceId), getSongs()]);
+  const [space, bank] = await Promise.all([getSpace(spaceId), getMaterials()]);
   if (!space || space.kind !== "studio") notFound();
 
   const source = typeof from === "string" ? await getLesson(space.id, from) : undefined;
@@ -28,7 +28,7 @@ export default async function NewLessonPage({ params, searchParams }: PageProps<
         time: source.time,
         groupId: source.groupId,
         participantIds: source.participantIds,
-        songIds: source.songIds,
+        materialIds: source.materialIds,
         notes: "",
         media: [],
       }
@@ -36,7 +36,7 @@ export default async function NewLessonPage({ params, searchParams }: PageProps<
         date: validDate ?? todayIso(),
         time: latest?.time ?? "17:00",
         participantIds: [],
-        songIds: [],
+        materialIds: [],
         notes: "",
         media: [],
       };

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { SongTitle } from "@/components/SongText";
+import { MaterialTitle } from "@/components/materials/MaterialText";
 import { GroupCard } from "@/components/GroupCard";
 import { GroupForm } from "@/components/GroupForm";
 import { PoolManager } from "@/components/PoolManager";
 import { createGroup } from "@/lib/actions/groups";
-import { getLessonsForSpace, getProjects, getSongs, getSpace } from "@/lib/data/queries";
+import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
 import type { PrivateSpace, StudioSpace } from "@/lib/types";
@@ -87,7 +87,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
                     </span>
                   </span>
                   <span className="text-sm">
-                    {lesson.participantIds.length} משתתפות · {lesson.songIds.length} שירים
+                    {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} שירים
                   </span>
                 </Link>
               </li>
@@ -116,7 +116,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
 }
 
 async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
-  const [projects, songs] = await Promise.all([getProjects(), getSongs()]);
+  const [projects, songs] = await Promise.all([getProjects(), getMaterials()]);
   const pool = activeStudents(space.students);
   const openTotal = projects
     .flatMap((p) => p.sessions.flatMap((se) => se.payments))
@@ -141,7 +141,7 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
         {projects.length === 0 && <p className="empty-state">אין עדיין פרויקטים. אפשר ליצור פרויקט חדש.</p>}
         <ul className="grid gap-4 sm:grid-cols-2" role="list">
           {projects.map((project) => {
-            const mainSong = songs.find((s) => s.id === project.mainSongId);
+            const mainMaterial = songs.find((s) => s.id === project.mainMaterialId);
             const participants = studentsByIds(space.students, project.participantIds);
             const unpaid = project.sessions
               .flatMap((s) => s.payments)
@@ -160,9 +160,9 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
                     </span>
                   </span>
                   <span className="mt-1 block text-sm">{participants.map((p) => p.name).join(", ")}</span>
-                  {mainSong && (
+                  {mainMaterial && (
                     <span className="mt-1 block text-sm text-muted">
-                      שיר ראשי: <SongTitle song={mainSong} />
+                      חומר מרכזי: <MaterialTitle material={mainMaterial} />
                     </span>
                   )}
                   <span className="mt-2 block text-sm">

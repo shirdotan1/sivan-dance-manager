@@ -1,7 +1,6 @@
-import { SongArtist, SongTitle } from "@/components/SongText";
+import { KindBadge, MaterialAction, MaterialArtist, MaterialTitle } from "@/components/materials/MaterialText";
 import { StudentLink } from "@/components/StudentLink";
-import { listenUrl } from "@/lib/format";
-import type { MediaItem, Song, Student } from "@/lib/types";
+import type { Material, MediaItem, Student } from "@/lib/types";
 
 /* Read-only sections shared by the lesson and session pages. */
 
@@ -27,42 +26,37 @@ export function ParticipantsView({ students, title = "משתתפות" }: { stude
   );
 }
 
-export function SongsView({ songs, title }: { songs: Song[]; title: string }) {
+export function MaterialsView({ materials, title }: { materials: Material[]; title: string }) {
   return (
-    <section aria-labelledby="songs-heading" className="card card-section">
-      <h2 id="songs-heading" className="mb-3">
-        {title} ({songs.length})
+    <section aria-labelledby="materials-heading" className="card card-section">
+      <h2 id="materials-heading" className="mb-3">
+        {title} ({materials.length})
       </h2>
-      {songs.length === 0 ? (
-        <p className="empty-state">לא נבחרו שירים. אפשר להוסיף בעריכה.</p>
+      {materials.length === 0 ? (
+        <p className="empty-state">לא נבחרו חומרים. אפשר להוסיף בעריכה.</p>
       ) : (
         <ul className="divider-list" role="list">
-          {songs.map((song) => (
-            <li key={song.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+          {materials.map((m) => (
+            <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span className="min-w-0 flex-1">
-                <span className="block font-medium">
-                  <SongTitle song={song} />
+                <span className="flex flex-wrap items-center gap-2 font-medium">
+                  <KindBadge material={m} />
+                  <MaterialTitle material={m} />
                 </span>
-                {(song.artist || song.style) && (
+                {m.kind === "song" && (m.artist || m.style) && (
                   <span className="text-sm text-muted">
-                    {song.artist && <SongArtist song={song} />}
-                    {song.artist && song.style && " · "}
-                    {song.style}
+                    {m.artist && <MaterialArtist material={m} />}
+                    {m.artist && m.style && " · "}
+                    {m.style}
+                  </span>
+                )}
+                {m.kind === "note" && m.note && (
+                  <span className="block whitespace-pre-line text-sm" dir="auto">
+                    {m.note}
                   </span>
                 )}
               </span>
-              <a
-                href={listenUrl(song)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="tap-link text-sm text-brand-strong underline underline-offset-4"
-              >
-                האזנה
-                <span className="visually-hidden">
-                  {" "}
-                  ל־<SongTitle song={song} /> (נפתח בלשונית חדשה)
-                </span>
-              </a>
+              <MaterialAction material={m} className="tap-link text-sm text-brand-strong underline underline-offset-4" />
             </li>
           ))}
         </ul>

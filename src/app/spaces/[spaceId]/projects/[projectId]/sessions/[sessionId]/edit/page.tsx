@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SessionForm } from "@/components/forms/SessionForm";
 import { saveSession } from "@/lib/actions/sessions";
-import { getProject, getSongs, getSpace } from "@/lib/data/queries";
+import { getProject, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "עריכת מפגש" };
@@ -12,7 +12,7 @@ export default async function EditSessionPage({
   params,
 }: PageProps<"/spaces/[spaceId]/projects/[projectId]/sessions/[sessionId]/edit">) {
   const { spaceId, projectId, sessionId } = await params;
-  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getSongs()]);
+  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getMaterials()]);
   const session = project?.sessions.find((s) => s.id === sessionId);
   if (!space || space.kind !== "private" || !project || !session) notFound();
   const projectHref = `/spaces/${space.id}/projects/${project.id}`;
