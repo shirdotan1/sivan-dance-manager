@@ -7,10 +7,9 @@ import { field, type ActionState } from "@/lib/actions/result";
 import {
   DATE_RE,
   TIME_RE,
-  parseMedia,
   parseParticipants,
   parseMaterials,
-  replaceMaterialsAndMedia,
+  replaceMaterials,
   resolveParticipants,
   resolveMaterials,
 } from "@/lib/data/entries";
@@ -25,7 +24,7 @@ function invalid(fieldErrors: Record<string, string>): ActionState {
 /**
  * Creates (lessonId = null) or updates a studio lesson with everything in
  * the form: date, time, group, participants (incl. new pool students),
- * songs (incl. new bank songs), notes and media. Redirects to the lesson.
+ * materials (incl. new bank materials) and notes. Media is managed on the lesson page. Redirects to the lesson.
  */
 export async function saveLesson(
   spaceId: string,
@@ -77,8 +76,8 @@ export async function saveLesson(
       .insert(participantIds.map((student_id) => ({ lesson_id: id, student_id })));
     if (insP.error) return { error: "שמירת המשתתפות נכשלה." };
   }
-  const err = await replaceMaterialsAndMedia(supabase, { lesson_id: id! }, materialIds, parseMedia(formData.get("media")));
-  if (err) return { error: "שמירת החומרים או המדיה נכשלה." };
+  const err = await replaceMaterials(supabase, { lesson_id: id! }, materialIds);
+  if (err) return { error: "שמירת החומרים נכשלה." };
 
   redirect(`/spaces/${spaceId}/lessons/${id}?saved=1`);
 }

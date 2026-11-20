@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { field, type ActionState } from "@/lib/actions/result";
-import { DATE_RE, TIME_RE, parseMedia, parseMaterials, replaceMaterialsAndMedia, resolveMaterials } from "@/lib/data/entries";
+import { DATE_RE, TIME_RE, parseMaterials, replaceMaterials, resolveMaterials } from "@/lib/data/entries";
 
 const SPACE = "private-lessons";
 
@@ -15,7 +15,7 @@ function invalid(fieldErrors: Record<string, string>): ActionState {
 
 /**
  * Creates (sessionId = null) or updates a project session: date, time,
- * one payment per project participant (amount + paid), songs, notes, media.
+ * one payment per project participant (amount + paid), materials, notes. Media is managed on the session page.
  */
 export async function saveSession(
   projectId: string,
@@ -74,8 +74,8 @@ export async function saveSession(
     const ins = await supabase.from("session_payments").insert(payments.map((p) => ({ ...p, session_id: id })));
     if (ins.error) return { error: "שמירת התשלומים נכשלה." };
   }
-  const err = await replaceMaterialsAndMedia(supabase, { session_id: id! }, materialIds, parseMedia(formData.get("media")));
-  if (err) return { error: "שמירת החומרים או המדיה נכשלה." };
+  const err = await replaceMaterials(supabase, { session_id: id! }, materialIds);
+  if (err) return { error: "שמירת החומרים נכשלה." };
 
   redirect(`/spaces/${SPACE}/projects/${projectId}/sessions/${id}?saved=1`);
 }
