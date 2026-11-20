@@ -1,17 +1,22 @@
 -- =====================================================================
 -- Migration 001 — material kind on songs
 --
--- WHAT: adds songs.kind with the values 'song', 'video', 'link', 'note'
---       (default 'song'). Every existing row becomes 'song'. The table
---       keeps its name (songs); the UI calls these "materials".
+-- WHAT: adds the column songs.kind with the values 'song', 'video',
+--       'link', 'note' and the default 'song'. Every existing row gets
+--       kind = 'song' (no other column or row is changed, nothing is
+--       deleted). The table keeps its name (songs); the UI calls these
+--       "materials".
 --
--- WHEN: run BEFORE deploying the code that reads songs.kind (branch
---       feature/materials-and-polish), first on the TEST project, then on
---       PRODUCTION. Safe to run while the current code is live: the
---       column is additive and has a default, so nothing existing breaks.
+-- WHERE / WHEN: in the Supabase SQL Editor of the PRODUCTION project,
+--       after downloading a JSON backup from the live site ("ייצוא כל
+--       הנתונים"), and BEFORE the code that reads songs.kind is deployed
+--       (i.e. before merging branch feature/materials-and-polish).
+--       It is safe while the current code is live: the column is additive
+--       and has a default, so existing pages and inserts keep working.
+--       (Once a separate test project exists, run it there first.)
 --
--- SAFE TO RE-RUN: yes. Running it a second time changes nothing.
--- DOES NOT touch any data other than adding the column default.
+-- SAFE TO RE-RUN: yes — "if not exists" for the column, and the check
+--       constraint is only added when missing. A second run changes nothing.
 -- =====================================================================
 
 alter table public.songs
