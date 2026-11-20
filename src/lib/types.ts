@@ -43,19 +43,29 @@ export interface PrivateSpace extends SpaceBase {
 
 export type Space = StudioSpace | PrivateSpace;
 
-export type SongLang = "he" | "en";
+export type TextLang = "he" | "en";
 
-export interface Song {
+/** What a material is. Songs stay the main kind and the default everywhere. */
+export type MaterialKind = "song" | "video" | "link" | "note";
+
+/**
+ * A teaching material in the bank (stored in the `songs` table). Songs use
+ * artist and style; other kinds use title, link and note.
+ */
+export interface Material {
   id: string;
+  kind: MaterialKind;
   title: string;
+  /** Songs only. */
   artist: string;
+  /** Songs only. */
   style: string;
-  /** YouTube or Spotify link (optional). Without it, listening falls back to a YouTube search. */
+  /** Song: YouTube/Spotify (optional, else a YouTube search). Video/link: required. Note: optional. */
   link?: string;
-  /** Sivan's personal note about the song (optional). */
+  /** Sivan's personal note (optional). For kind "note" this is the content. */
   note?: string;
-  titleLang: SongLang;
-  artistLang: SongLang;
+  titleLang: TextLang;
+  artistLang: TextLang;
 }
 
 export type MediaKind = "photo" | "video";
@@ -84,7 +94,7 @@ export interface Lesson {
   /** 24h time, e.g. "17:30". */
   time: string;
   participantIds: string[];
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: MediaItem[];
 }
@@ -96,7 +106,7 @@ export interface Session {
   id: string;
   date: string;
   time: string;
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: MediaItem[];
   /** One entry per project participant. */
@@ -110,6 +120,6 @@ export interface DanceProject {
   type: ProjectType;
   color: string;
   participantIds: string[];
-  mainSongId?: string;
+  mainMaterialId?: string;
   sessions: Session[];
 }

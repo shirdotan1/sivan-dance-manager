@@ -9,10 +9,10 @@ import {
   TIME_RE,
   parseMedia,
   parseParticipants,
-  parseSongs,
-  replaceSongsAndMedia,
+  parseMaterials,
+  replaceMaterialsAndMedia,
   resolveParticipants,
-  resolveSongs,
+  resolveMaterials,
 } from "@/lib/data/entries";
 
 const STUDIOS = new Set(["new-high-school", "balance-studio"]);
@@ -35,8 +35,8 @@ export async function saveLesson(
   if (!TIME_RE.test(time)) return { error: "יש לבחור שעה." };
   const groupId = field(formData, "groupId") || null;
   const notes = field(formData, "notes");
-  const songs = parseSongs(formData.get("songs"));
-  if ("error" in songs) return { error: songs.error };
+  const materials = parseMaterials(formData.get("materials"));
+  if ("error" in materials) return { error: materials.error };
 
   const { supabase } = await requireUser();
 
@@ -47,8 +47,8 @@ export async function saveLesson(
 
   const participantIds = await resolveParticipants(supabase, spaceId, parseParticipants(formData.get("participants")));
   if ("error" in participantIds) return { error: participantIds.error };
-  const songIds = await resolveSongs(supabase, songs);
-  if ("error" in songIds) return { error: songIds.error };
+  const materialIds = await resolveMaterials(supabase, materials);
+  if ("error" in materialIds) return { error: materialIds.error };
 
   const row = { space_id: spaceId, group_id: groupId, date, time, notes };
   let id = lessonId;
@@ -69,7 +69,7 @@ export async function saveLesson(
       .insert(participantIds.map((student_id) => ({ lesson_id: id, student_id })));
     if (insP.error) return { error: "שמירת המשתתפות נכשלה." };
   }
-  const err = await replaceSongsAndMedia(supabase, { lesson_id: id! }, songIds, parseMedia(formData.get("media")));
+  const err = await replaceMaterialsAndMedia(supabase, { lesson_id: id! }, materialIds, parseMedia(formData.get("media")));
   if (err) return { error: "שמירת השירים או המדיה נכשלה." };
 
   redirect(`/spaces/${spaceId}/lessons/${id}?saved=1`);

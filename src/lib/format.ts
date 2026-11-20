@@ -1,11 +1,36 @@
 /** Formatting and small pure helpers shared by server and client code. */
-import type { ProjectType, Song } from "@/lib/types";
+import type { Material, MaterialKind, ProjectType } from "@/lib/types";
 
-/** Link for listening: the song's own link, or a YouTube search as a fallback. */
-export function listenUrl(song: Song): string {
-  if (song.link) return song.link;
-  const query = [song.title, song.artist].filter(Boolean).join(" ");
+/** Kind labels shown as text next to every material (never color/icon alone). */
+export const materialKindLabel: Record<MaterialKind, string> = {
+  song: "שיר",
+  video: "סרטון",
+  link: "קישור",
+  note: "הערה",
+};
+
+export const MATERIAL_KINDS: MaterialKind[] = ["song", "video", "link", "note"];
+
+export function isMaterialKind(v: unknown): v is MaterialKind {
+  return typeof v === "string" && (MATERIAL_KINDS as string[]).includes(v);
+}
+
+/**
+ * Where the action button goes: the material's own link, or for a song
+ * without one a YouTube search. Notes without a link have no action.
+ */
+export function materialUrl(m: Material): string | undefined {
+  if (m.link) return m.link;
+  if (m.kind !== "song") return undefined;
+  const query = [m.title, m.artist].filter(Boolean).join(" ");
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+}
+
+/** Action wording per kind: listen (song) / watch (video) / open (link, note). */
+export function materialActionLabel(m: Material): string {
+  if (m.kind === "song") return m.link ? "האזנה" : "חיפוש ביוטיוב";
+  if (m.kind === "video") return "צפייה";
+  return "פתיחה";
 }
 
 /** Full-match regex (for the `pattern` attribute) for YouTube/Spotify links. */
@@ -18,6 +43,24 @@ export function isSongLink(value: string): boolean {
   return songLinkRegex.test(value.trim());
 }
 
+/** Any absolute http(s) URL — for videos and links (not limited to YouTube/Spotify). */
+export function isWebLink(value: string): boolean {
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** Validates a material's link for its kind. Returns an error message or null. */
+export function materialLinkError(kind: MaterialKind, link: string): string | null {
+  const v = link.trim();
+  if (!v) return kind === "video" || kind === "link" ? "לסרטון ולקישור צריך להדביק לינק." : null;
+  if (kind === "song") return isSongLink(v) ? null : "לשיר: קישור מלא מיוטיוב או מספוטיפיי.";
+  return isWebLink(v) ? null : "יש להדביק כתובת מלאה שמתחילה ב-https://";
+}
+
 /** Hebrew letters → "he"; otherwise Latin letters → "en"; default "he". */
 export function guessLang(text: string): "he" | "en" {
   if (/[֐-׿]/.test(text)) return "he";
@@ -25,9 +68,15 @@ export function guessLang(text: string): "he" | "en" {
   return "he";
 }
 
-/** Title for a song added by link only, e.g. "שיר מיוטיוב". */
-export function titleFromLink(link: string): string {
-  return /spotify\.com/i.test(link) ? "שיר מספוטיפיי" : "שיר מיוטיוב";
+/** Title for a material added by link only, e.g. "שיר מיוטיוב" / "סרטון מיוטיוב" / "קישור: example.com". */
+export function titleFromLink(link: string, kind: MaterialKind = "song"): string {
+  if (kind === "song") return /spotify\.com/i.test(link) ? "שיר מספוטיפיי" : "שיר מיוטיוב";
+  let host = "";
+  try {
+    host = new URL(link).hostname.replace(/^www\./, "");
+  } catch {}
+  if (kind === "video") return /youtu/.test(host) ? "סרטון מיוטיוב" : host ? `סרטון מ-${host}` : "סרטון";
+  return host ? `קישור: ${host}` : "קישור";
 }
 
 export const projectTypeLabel: Record<ProjectType, string> = {

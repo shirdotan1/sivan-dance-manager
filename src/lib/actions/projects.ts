@@ -13,7 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function saveProject(projectId: string | null, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = field(formData, "name");
   const type = field(formData, "type");
-  const mainSongId = field(formData, "mainSongId");
+  const mainMaterialId = field(formData, "mainMaterialId");
   const participants = fields(formData, "participant").filter((id) => UUID_RE.test(id));
   if (!name) return { error: "יש להזין שם לריקוד." };
   if (type !== "solo" && type !== "group") return { error: "יש לבחור סולו או קבוצתי." };
@@ -24,7 +24,7 @@ export async function saveProject(projectId: string | null, _prev: ActionState, 
   const { data: pool } = await supabase.from("students").select("id").eq("space_id", SPACE).in("id", participants);
   if ((pool ?? []).length !== participants.length) return { error: "אחת המשתתפות אינה במאגר השיעורים הפרטיים." };
 
-  const row = { name, type, main_song_id: mainSongId && UUID_RE.test(mainSongId) ? mainSongId : null };
+  const row = { name, type, main_song_id: mainMaterialId && UUID_RE.test(mainMaterialId) ? mainMaterialId : null };
   let id = projectId;
   if (id) {
     const { error } = await supabase.from("projects").update(row).eq("id", id);

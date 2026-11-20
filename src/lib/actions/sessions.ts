@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/supabase/server";
 import { field, type ActionState } from "@/lib/actions/result";
-import { DATE_RE, TIME_RE, parseMedia, parseSongs, replaceSongsAndMedia, resolveSongs } from "@/lib/data/entries";
+import { DATE_RE, TIME_RE, parseMedia, parseMaterials, replaceMaterialsAndMedia, resolveMaterials } from "@/lib/data/entries";
 
 const SPACE = "private-lessons";
 
@@ -23,8 +23,8 @@ export async function saveSession(
   if (!DATE_RE.test(date)) return { error: "יש לבחור תאריך." };
   if (!TIME_RE.test(time)) return { error: "יש לבחור שעה." };
   const notes = field(formData, "notes");
-  const songs = parseSongs(formData.get("songs"));
-  if ("error" in songs) return { error: songs.error };
+  const materials = parseMaterials(formData.get("materials"));
+  if ("error" in materials) return { error: materials.error };
 
   const { supabase } = await requireUser();
   const { data: project } = await supabase
@@ -41,8 +41,8 @@ export async function saveSession(
     payments.push({ student_id, amount, paid: formData.get(`paid_${student_id}`) === "on" });
   }
 
-  const songIds = await resolveSongs(supabase, songs);
-  if ("error" in songIds) return { error: songIds.error };
+  const materialIds = await resolveMaterials(supabase, materials);
+  if ("error" in materialIds) return { error: materialIds.error };
 
   let id = sessionId;
   if (id) {
@@ -66,7 +66,7 @@ export async function saveSession(
     const ins = await supabase.from("session_payments").insert(payments.map((p) => ({ ...p, session_id: id })));
     if (ins.error) return { error: "שמירת התשלומים נכשלה." };
   }
-  const err = await replaceSongsAndMedia(supabase, { session_id: id! }, songIds, parseMedia(formData.get("media")));
+  const err = await replaceMaterialsAndMedia(supabase, { session_id: id! }, materialIds, parseMedia(formData.get("media")));
   if (err) return { error: "שמירת השירים או המדיה נכשלה." };
 
   redirect(`/spaces/${SPACE}/projects/${projectId}/sessions/${id}?saved=1`);

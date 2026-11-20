@@ -1,5 +1,5 @@
 /** Pure lookups over already-loaded data (server or client). */
-import type { Song, Student } from "@/lib/types";
+import type { Material, Student } from "@/lib/types";
 
 /** Students for the given ids, in id order (archived ones included, for history). */
 export function studentsByIds(pool: Student[], ids: string[]): Student[] {
@@ -11,6 +11,6 @@ export function activeStudents(pool: Student[]): Student[] {
   return pool.filter((s) => !s.archived);
 }
 
-export function songsByIds(bank: Song[], ids: string[]): Song[] {
-  return ids.map((id) => bank.find((s) => s.id === id)).filter((s): s is Song => Boolean(s));
+export function materialsByIds(bank: Material[], ids: string[]): Material[] {
+  return ids.map((id) => bank.find((s) => s.id === id)).filter((s): s is Material => Boolean(s));
 }
