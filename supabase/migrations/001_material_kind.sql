@@ -15,6 +15,11 @@
 --       and has a default, so existing pages and inserts keep working.
 --       (Once a separate test project exists, run it there first.)
 --
+-- STATUS: run on PRODUCTION on 2026-11-20 (verified through the API) and
+--       on the TEST project on 2026-11-20 after schema.sql + seed.sql,
+--       where it changed nothing because the snapshot already has kind.
+--       Nothing left to run for this file.
+--
 -- SAFE TO RE-RUN: yes — "if not exists" for the column, and the check
 --       constraint is only added when missing. A second run changes nothing.
 -- =====================================================================
