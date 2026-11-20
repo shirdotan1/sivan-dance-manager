@@ -64,8 +64,12 @@ create table public.group_members (
 );
 
 -- ---------- Song bank ----------
+-- Materials bank (the UI calls these "materials"; the table keeps its name).
+-- kind came in with migrations/001_material_kind.sql; included here so a
+-- fresh install matches a migrated database.
 create table public.songs (
   id          uuid primary key default gen_random_uuid(),
+  kind        text not null default 'song',
   title       text not null check (length(btrim(title)) > 0),
   artist      text not null default '',
   style       text not null default '',
@@ -73,7 +77,8 @@ create table public.songs (
   note        text,
   title_lang  text not null default 'he' check (title_lang in ('he', 'en')),
   artist_lang text not null default 'he' check (artist_lang in ('he', 'en')),
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  constraint songs_kind_check check (kind in ('song', 'video', 'link', 'note'))
 );
 
 -- ---------- Studio lessons ----------

@@ -58,26 +58,26 @@ spaces.forEach((space, i) => {
 });
 
 for (const s of songs) {
-  rows.songs.push([uuid("song", s.id), s.title, s.artist, s.style, s.link, s.note, s.titleLang, s.artistLang, createdAt()]);
+  rows.songs.push([uuid("song", s.id), s.kind ?? "song", s.title, s.artist, s.style, s.link, s.note, s.titleLang, s.artistLang, createdAt()]);
 }
 
 for (const l of lessons) {
   const id = uuid("lesson", l.id);
   rows.lessons.push([id, l.spaceId, l.groupId ? uuid("group", l.groupId) : null, l.date, l.time, l.notes]);
   for (const sid of l.participantIds) rows.lesson_participants.push([id, uuid("student", sid)]);
-  l.songIds.forEach((sid, pos) => rows.lesson_songs.push([id, uuid("song", sid), pos]));
+  l.materialIds.forEach((sid, pos) => rows.lesson_songs.push([id, uuid("song", sid), pos]));
   l.media.forEach((m, pos) => rows.media_items.push([uuid("media", m.id), id, null, m.kind, m.caption, pos]));
 }
 
 for (const p of projects) {
   const pid = uuid("project", p.id);
-  rows.projects.push([pid, "private-lessons", p.name, p.type, uuid("song", p.mainSongId), nextColor(), createdAt()]);
+  rows.projects.push([pid, "private-lessons", p.name, p.type, uuid("song", p.mainMaterialId), nextColor(), createdAt()]);
   for (const sid of p.participantIds) rows.project_participants.push([pid, uuid("student", sid)]);
   for (const s of p.sessions) {
     const sid = uuid("session", `${p.id}/${s.id}`);
     rows.sessions.push([sid, pid, s.date, s.time, s.notes]);
     for (const pay of s.payments) rows.session_payments.push([sid, uuid("student", pay.studentId), pay.amount, pay.paid]);
-    s.songIds.forEach((song, pos) => rows.session_songs.push([sid, uuid("song", song), pos]));
+    s.materialIds.forEach((song, pos) => rows.session_songs.push([sid, uuid("song", song), pos]));
     s.media.forEach((m, pos) => rows.media_items.push([uuid("media", m.id), null, sid, m.kind, m.caption, pos]));
   }
 }
@@ -95,7 +95,7 @@ const sql =
   insert("students", ["id", "space_id", "name", "phone", "created_at"], rows.students) +
   insert("groups", ["id", "space_id", "name", "color", "created_at"], rows.groups) +
   insert("group_members", ["group_id", "student_id"], rows.group_members) +
-  insert("songs", ["id", "title", "artist", "style", "link", "note", "title_lang", "artist_lang", "created_at"], rows.songs) +
+  insert("songs", ["id", "kind", "title", "artist", "style", "link", "note", "title_lang", "artist_lang", "created_at"], rows.songs) +
   insert("lessons", ["id", "space_id", "group_id", "date", "time", "notes"], rows.lessons) +
   insert("lesson_participants", ["lesson_id", "student_id"], rows.lesson_participants) +
   insert("lesson_songs", ["lesson_id", "song_id", "position"], rows.lesson_songs) +
