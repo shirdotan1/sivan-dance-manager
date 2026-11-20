@@ -1,7 +1,13 @@
 -- =====================================================================
 -- Sivan dance manager — database schema (Supabase / Postgres)
--- Run once in the Supabase SQL Editor, then run seed.sql.
--- Safe to re-run: drops and recreates all app tables (DATA IS LOST).
+--
+-- !!! WARNING — DESTRUCTIVE !!!
+-- This file DROPS EVERY APP TABLE AND ALL OF ITS DATA before creating
+-- them again. It is meant for a ONE-TIME setup of a NEW, EMPTY Supabase
+-- project only. NEVER run it again once real data has been entered:
+-- students, lessons, sessions and payments would be deleted permanently.
+--
+-- Setup order (new project only): schema.sql, then seed.sql.
 -- =====================================================================
 
 drop table if exists public.media_items cascade;
