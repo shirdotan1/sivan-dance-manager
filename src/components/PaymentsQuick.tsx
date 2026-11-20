@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useOptimistic, useTransition } from "react";
+import { useId, useOptimistic, useState, useTransition } from "react";
 import { StudentLink } from "@/components/StudentLink";
 import { SwitchInput } from "@/components/SwitchInput";
 import { setPaymentPaid } from "@/lib/actions/sessions";
@@ -17,7 +17,22 @@ export function PaymentsQuick({ sessionId, payments, students }: { sessionId: st
   const [optimistic, setOptimistic] = useOptimistic(payments, (state, update: { studentId: string; paid: boolean }) =>
     state.map((p) => (p.studentId === update.studentId ? { ...p, paid: update.paid } : p)),
   );
+  /** Per-row save feedback; "error" keeps the intended value so it can be retried. */
+  const [saveState, setSaveState] = useState<Record<string, { state: "saving" | "saved" | "error"; paid: boolean }>>({});
   const nameOf = (sid: string) => students.find((s) => s.id === sid)?.name ?? "תלמידה";
+
+  /** One tap saves right away (optimistic); a failure rolls back and offers a retry. */
+  const save = (studentId: string, paid: boolean) =>
+    startTransition(async () => {
+      setOptimistic({ studentId, paid });
+      setSaveState((s) => ({ ...s, [studentId]: { state: "saving", paid } }));
+      try {
+        await setPaymentPaid(sessionId, studentId, paid);
+        setSaveState((s) => ({ ...s, [studentId]: { state: "saved", paid } }));
+      } catch {
+        setSaveState((s) => ({ ...s, [studentId]: { state: "error", paid } }));
+      }
+    });
   const total = optimistic.reduce((s, p) => s + p.amount, 0);
   const paidTotal = optimistic.filter((p) => p.paid).reduce((s, p) => s + p.amount, 0);
 
@@ -44,13 +59,7 @@ export function PaymentsQuick({ sessionId, payments, students }: { sessionId: st
                   <SwitchInput
                     id={`${id}-${p.studentId}`}
                     checked={p.paid}
-                    onChange={(e) => {
-                      const paid = e.target.checked;
-                      startTransition(async () => {
-                        setOptimistic({ studentId: p.studentId, paid });
-                        await setPaymentPaid(sessionId, p.studentId, paid);
-                      });
-                    }}
+                    onChange={(e) => save(p.studentId, e.target.checked)}
                   />
                   שולם<span className="visually-hidden"> — {nameOf(p.studentId)}</span>
                 </label>
@@ -60,11 +69,42 @@ export function PaymentsQuick({ sessionId, payments, students }: { sessionId: st
                 >
                   {p.paid ? "✓ שולם" : "✗ טרם שולם"}
                 </span>
+                <SaveStatus
+                  status={saveState[p.studentId]}
+                  name={nameOf(p.studentId)}
+                  onRetry={() => save(p.studentId, saveState[p.studentId]!.paid)}
+                />
               </span>
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/** Polite live status per row: saving / saved / failed + retry (focusable button). */
+function SaveStatus({
+  status,
+  name,
+  onRetry,
+}: {
+  status?: { state: "saving" | "saved" | "error"; paid: boolean };
+  name: string;
+  onRetry: () => void;
+}) {
+  return (
+    <span role="status" className="flex min-h-6 items-center gap-2 text-sm">
+      {status?.state === "saving" && <span className="text-muted">שומרת…</span>}
+      {status?.state === "saved" && <span className="text-success">✓ נשמר</span>}
+      {status?.state === "error" && (
+        <>
+          <span className="font-medium text-danger">⚠ השמירה נכשלה</span>
+          <button type="button" className="btn btn-secondary btn-compact" onClick={onRetry}>
+            ניסיון חוזר<span className="visually-hidden"> — {name}, {status.paid ? "שולם" : "לא שולם"}</span>
+          </button>
+        </>
+      )}
+    </span>
   );
 }
