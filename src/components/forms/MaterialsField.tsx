@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { FieldError } from "@/components/forms/FieldError";
 import { KindPicker } from "@/components/materials/KindPicker";
 import { MaterialLinkField } from "@/components/materials/MaterialLinkField";
 import { KindBadge, MaterialAction, MaterialArtist, MaterialTitle } from "@/components/materials/MaterialText";
@@ -16,7 +17,18 @@ const isExisting = (e: MaterialEntry): e is { id: string } => "id" in e;
  * Materials inside the lesson/session form: pick from the bank, or add a new
  * one quickly (song pre-selected; joins the bank on save). Submitted as JSON.
  */
-export function MaterialsField({ bank, initialIds, legend }: { bank: Material[]; initialIds: string[]; legend: string }) {
+export function MaterialsField({
+  bank,
+  initialIds,
+  legend,
+  error: serverError,
+}: {
+  bank: Material[];
+  initialIds: string[];
+  legend: string;
+  /** Server error for this section (shown under the legend). */
+  error?: string;
+}) {
   const id = useId();
   const [entries, setEntries] = useState<MaterialEntry[]>(() => initialIds.map((mid) => ({ id: mid })));
   const [kind, setKind] = useState<MaterialKind>("song");
@@ -85,10 +97,17 @@ export function MaterialsField({ bank, initialIds, legend }: { bank: Material[];
   };
 
   return (
-    <fieldset id="materials" className="card card-section">
+    <fieldset
+      id="materials"
+      tabIndex={-1}
+      className="card card-section"
+      aria-invalid={serverError ? true : undefined}
+      aria-describedby={serverError ? "materials-error" : undefined}
+    >
       <legend className="card-legend">
         {legend} ({entries.length})
       </legend>
+      <FieldError id="materials-error" message={serverError} />
       <input
         type="hidden"
         name="materials"

@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { MediaField } from "@/components/forms/MediaField";
 import { PaymentsField } from "@/components/forms/PaymentsField";
+import { FieldError, errorProps, useFocusFirstError } from "@/components/forms/FieldError";
 import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
@@ -30,6 +31,12 @@ interface SessionFormProps {
 export function SessionForm({ action, pool, participantIds, bank, draft, submitLabel }: SessionFormProps) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(action);
+  useFocusFirstError(state, [
+    ["date", `${id}-date`],
+    ["time", `${id}-time`],
+    ["materials", "materials"],
+  ]);
+  const err = state.fieldErrors ?? {};
 
   return (
     <form onSubmit={onSubmit} className="pb-2">
@@ -40,19 +47,21 @@ export function SessionForm({ action, pool, participantIds, bank, draft, submitL
             <label htmlFor={`${id}-date`} className="font-medium">
               תאריך <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-date`} name="date" type="date" required defaultValue={draft.date} />
+            <input id={`${id}-date`} name="date" type="date" required defaultValue={draft.date} {...errorProps(id, "date", state)} />
+            <FieldError id={`${id}-date-error`} message={err.date} />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-time`} className="font-medium">
               שעה <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-time`} name="time" type="time" required step={300} defaultValue={draft.time} />
+            <input id={`${id}-time`} name="time" type="time" required step={300} defaultValue={draft.time} {...errorProps(id, "time", state)} />
+            <FieldError id={`${id}-time-error`} message={err.time} />
           </div>
         </div>
       </fieldset>
 
       <PaymentsField students={pool} participantIds={participantIds} initial={draft.payments} />
-      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים במפגש" />
+      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים במפגש" error={err.materials} />
 
       <fieldset className="card card-section">
         <legend className="card-legend">הערות</legend>

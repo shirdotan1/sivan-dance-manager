@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { FocusOnHash } from "@/components/FocusOnHash";
+import { FieldError } from "@/components/forms/FieldError";
 import { activeStudents } from "@/lib/lookup";
 import type { Group, Student } from "@/lib/types";
 
@@ -11,6 +12,8 @@ export type ParticipantEntry = { id: string } | { name: string; key: string };
 const isExisting = (e: ParticipantEntry): e is { id: string } => "id" in e;
 
 interface ParticipantsFieldProps {
+  /** Server error for this section (shown under the legend). */
+  error?: string;
   /** Whole pool incl. removed students (for names in history). */
   pool: Student[];
   groups?: Group[];
@@ -21,7 +24,7 @@ interface ParticipantsFieldProps {
  * Participants inside the lesson form (no nested forms): insert a group,
  * add from the pool, type a new student. Submitted as JSON in one hidden input.
  */
-export function ParticipantsField({ pool, groups = [], initialIds }: ParticipantsFieldProps) {
+export function ParticipantsField({ pool, groups = [], initialIds, error }: ParticipantsFieldProps) {
   const id = useId();
   const [entries, setEntries] = useState<ParticipantEntry[]>(() => initialIds.map((sid) => ({ id: sid })));
   const [status, setStatus] = useState("");
@@ -90,9 +93,16 @@ export function ParticipantsField({ pool, groups = [], initialIds }: Participant
   };
 
   return (
-    <fieldset id="participants" tabIndex={-1} className="card card-section">
+    <fieldset
+      id="participants"
+      tabIndex={-1}
+      className="card card-section"
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? "participants-error" : undefined}
+    >
       <FocusOnHash targetId="participants" />
       <legend className="card-legend">משתתפות ({entries.length})</legend>
+      <FieldError id="participants-error" message={error} />
       <input type="hidden" name="participants" value={JSON.stringify(entries.map((e) => (isExisting(e) ? { id: e.id } : { name: e.name })))} />
 
       {entries.length === 0 ? (

@@ -8,6 +8,11 @@ import { DATE_RE, TIME_RE, parseMedia, parseMaterials, replaceMaterialsAndMedia,
 
 const SPACE = "private-lessons";
 
+/** Field-level failure: the form shows each message next to its field and focuses the first. */
+function invalid(fieldErrors: Record<string, string>): ActionState {
+  return { error: "יש לתקן את השדות המסומנים.", fieldErrors };
+}
+
 /**
  * Creates (sessionId = null) or updates a project session: date, time,
  * one payment per project participant (amount + paid), songs, notes, media.
@@ -20,11 +25,14 @@ export async function saveSession(
 ): Promise<ActionState> {
   const date = field(formData, "date");
   const time = field(formData, "time");
-  if (!DATE_RE.test(date)) return { error: "יש לבחור תאריך." };
-  if (!TIME_RE.test(time)) return { error: "יש לבחור שעה." };
+  const fieldErrors: Record<string, string> = {};
+  if (!DATE_RE.test(date)) fieldErrors.date = "יש לבחור תאריך.";
+  if (!TIME_RE.test(time)) fieldErrors.time = "יש לבחור שעה.";
   const notes = field(formData, "notes");
   const materials = parseMaterials(formData.get("materials"));
-  if ("error" in materials) return { error: materials.error };
+  if ("error" in materials) fieldErrors.materials = materials.error;
+  if (Object.keys(fieldErrors).length) return invalid(fieldErrors);
+  if ("error" in materials) return invalid(fieldErrors); // narrows the type
 
   const { supabase } = await requireUser();
   const { data: project } = await supabase
@@ -42,7 +50,7 @@ export async function saveSession(
   }
 
   const materialIds = await resolveMaterials(supabase, materials);
-  if ("error" in materialIds) return { error: materialIds.error };
+  if ("error" in materialIds) return invalid({ materials: materialIds.error });
 
   let id = sessionId;
   if (id) {

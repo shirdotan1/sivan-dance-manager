@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { MediaField } from "@/components/forms/MediaField";
 import { ParticipantsField } from "@/components/forms/ParticipantsField";
+import { FieldError, errorProps, useFocusFirstError } from "@/components/forms/FieldError";
 import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
@@ -30,6 +31,14 @@ interface LessonFormProps {
 export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFormProps) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(action);
+  useFocusFirstError(state, [
+    ["date", `${id}-date`],
+    ["time", `${id}-time`],
+    ["groupId", `${id}-groupId`],
+    ["participants", "participants"],
+    ["materials", "materials"],
+  ]);
+  const err = state.fieldErrors ?? {};
 
   return (
     <form onSubmit={onSubmit} className="pb-2">
@@ -40,19 +49,26 @@ export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFo
             <label htmlFor={`${id}-date`} className="font-medium">
               תאריך <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-date`} name="date" type="date" required defaultValue={draft.date} />
+            <input id={`${id}-date`} name="date" type="date" required defaultValue={draft.date} {...errorProps(id, "date", state)} />
+            <FieldError id={`${id}-date-error`} message={err.date} />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-time`} className="font-medium">
               שעה <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-time`} name="time" type="time" required step={300} defaultValue={draft.time} />
+            <input id={`${id}-time`} name="time" type="time" required step={300} defaultValue={draft.time} {...errorProps(id, "time", state)} />
+            <FieldError id={`${id}-time-error`} message={err.time} />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={`${id}-group`} className="font-medium">
+            <label htmlFor={`${id}-groupId`} className="font-medium">
               קבוצת השיעור
             </label>
-            <select id={`${id}-group`} name="groupId" defaultValue={draft.groupId ?? ""} aria-describedby={`${id}-group-hint`}>
+            <select
+              id={`${id}-groupId`}
+              name="groupId"
+              defaultValue={draft.groupId ?? ""}
+              {...errorProps(id, "groupId", state, `${id}-group-hint`)}
+            >
               <option value="">בלי קבוצה</option>
               {space.groups.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -63,12 +79,13 @@ export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFo
             <span id={`${id}-group-hint`} className="text-sm text-muted">
               קובעת את הצבע בלוח השנה.
             </span>
+            <FieldError id={`${id}-groupId-error`} message={err.groupId} />
           </div>
         </div>
       </fieldset>
 
-      <ParticipantsField pool={space.students} groups={space.groups} initialIds={draft.participantIds} />
-      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים בשיעור" />
+      <ParticipantsField pool={space.students} groups={space.groups} initialIds={draft.participantIds} error={err.participants} />
+      <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים בשיעור" error={err.materials} />
 
       <fieldset className="card card-section">
         <legend className="card-legend">הערות</legend>

@@ -17,6 +17,11 @@ import {
 
 const STUDIOS = new Set(["new-high-school", "balance-studio"]);
 
+/** Field-level failure: the form shows each message next to its field and focuses the first. */
+function invalid(fieldErrors: Record<string, string>): ActionState {
+  return { error: "יש לתקן את השדות המסומנים.", fieldErrors };
+}
+
 /**
  * Creates (lessonId = null) or updates a studio lesson with everything in
  * the form: date, time, group, participants (incl. new pool students),
@@ -31,24 +36,27 @@ export async function saveLesson(
   if (!STUDIOS.has(spaceId)) return { error: "מרחב לא מוכר." };
   const date = field(formData, "date");
   const time = field(formData, "time");
-  if (!DATE_RE.test(date)) return { error: "יש לבחור תאריך." };
-  if (!TIME_RE.test(time)) return { error: "יש לבחור שעה." };
+  const fieldErrors: Record<string, string> = {};
+  if (!DATE_RE.test(date)) fieldErrors.date = "יש לבחור תאריך.";
+  if (!TIME_RE.test(time)) fieldErrors.time = "יש לבחור שעה.";
   const groupId = field(formData, "groupId") || null;
   const notes = field(formData, "notes");
   const materials = parseMaterials(formData.get("materials"));
-  if ("error" in materials) return { error: materials.error };
+  if ("error" in materials) fieldErrors.materials = materials.error;
+  if (Object.keys(fieldErrors).length) return invalid(fieldErrors);
+  if ("error" in materials) return invalid(fieldErrors); // narrows the type
 
   const { supabase } = await requireUser();
 
   if (groupId) {
     const { data: g } = await supabase.from("groups").select("id").eq("id", groupId).eq("space_id", spaceId).maybeSingle();
-    if (!g) return { error: "הקבוצה שנבחרה אינה במרחב הזה." };
+    if (!g) return invalid({ groupId: "הקבוצה שנבחרה אינה במרחב הזה." });
   }
 
   const participantIds = await resolveParticipants(supabase, spaceId, parseParticipants(formData.get("participants")));
-  if ("error" in participantIds) return { error: participantIds.error };
+  if ("error" in participantIds) return invalid({ participants: participantIds.error });
   const materialIds = await resolveMaterials(supabase, materials);
-  if ("error" in materialIds) return { error: materialIds.error };
+  if ("error" in materialIds) return invalid({ materials: materialIds.error });
 
   const row = { space_id: spaceId, group_id: groupId, date, time, notes };
   let id = lessonId;
