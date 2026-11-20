@@ -1,7 +1,8 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { StudentEditForm } from "@/components/StudentEditForm";
 import { StudentLink } from "@/components/StudentLink";
 import { addStudent, removeStudentFromPool } from "@/lib/actions/students";
 import { useActionForm } from "@/lib/actions/useActionForm";
@@ -11,6 +12,8 @@ import type { Student } from "@/lib/types";
 export function PoolManager({ spaceId, students }: { spaceId: string; students: Student[] }) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(addStudent.bind(null, spaceId));
+  /** Which row's edit form is open (one at a time). */
+  const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <>
@@ -31,6 +34,15 @@ export function PoolManager({ spaceId, students }: { spaceId: string; students: 
                     {student.phone}
                   </a>
                 )}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-compact"
+                  aria-expanded={editing === student.id}
+                  aria-controls={`${id}-edit-${student.id}`}
+                  onClick={() => setEditing((cur) => (cur === student.id ? null : student.id))}
+                >
+                  עריכה<span className="visually-hidden"> של {student.name}</span>
+                </button>
                 <ConfirmDialog
                   triggerLabel="הסרה"
                   triggerContext={`של ${student.name} מהמאגר`}
@@ -44,6 +56,11 @@ export function PoolManager({ spaceId, students }: { spaceId: string; students: 
                   onConfirm={() => removeStudentFromPool(student.id)}
                 />
               </span>
+              {editing === student.id && (
+                <div id={`${id}-edit-${student.id}`} className="disclosure mb-2 basis-full pt-3">
+                  <StudentEditForm student={student} />
+                </div>
+              )}
             </li>
           ))}
         </ul>

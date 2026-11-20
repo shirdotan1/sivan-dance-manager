@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { StudentEditForm } from "@/components/StudentEditForm";
 import { getStudentCard } from "@/lib/data/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -35,6 +36,11 @@ export default async function StudentPage({ params }: Props) {
         )}
         {student.archived && <span className="chip">הוסרה מהמאגר — ההיסטוריה נשמרת</span>}
       </p>
+
+      <details className="disclosure mb-6">
+        <summary>עריכת פרטים</summary>
+        <StudentEditForm student={student} />
+      </details>
 
       {student.spaceKind === "studio" ? (
         <section aria-labelledby="groups-h" className="card card-section">
