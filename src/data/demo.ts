@@ -9,6 +9,8 @@ export type SeedLang = "he" | "en";
 
 export interface SeedSong {
   id: string;
+  /** Material kind (default "song"). */
+  kind?: "song" | "video" | "link" | "note";
   title: string;
   artist: string;
   style: string;
@@ -52,7 +54,7 @@ export interface SeedLesson {
   date: string;
   time: string;
   participantIds: string[];
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: SeedMedia[];
 }
@@ -61,7 +63,7 @@ export interface SeedSession {
   id: string;
   date: string;
   time: string;
-  songIds: string[];
+  materialIds: string[];
   notes: string;
   media: SeedMedia[];
   payments: { studentId: string; amount: number; paid: boolean }[];
@@ -72,7 +74,7 @@ export interface SeedProject {
   name: string;
   type: "solo" | "group";
   participantIds: string[];
-  mainSongId: string;
+  mainMaterialId: string;
   sessions: SeedSession[];
 }
 
@@ -91,6 +93,9 @@ export const songs: SeedSong[] = [
   { id: "s10", title: "Levitating", artist: "Dua Lipa", style: "פופ", titleLang: "en", artistLang: "en" },
   { id: "s11", title: "Can't Stop the Feeling!", artist: "Justin Timberlake", style: "פופ", titleLang: "en", artistLang: "en" },
   { id: "s12", title: "Happy", artist: "Pharrell Williams", style: "סול", titleLang: "en", artistLang: "en" },
+  // Non-song materials, so the materials bank shows the idea right away (seed only).
+  { id: "m-video-1", kind: "video", title: "רעיונות לחימום ג׳אז לירי", artist: "", style: "", link: "https://www.youtube.com/results?search_query=lyrical+jazz+warm+up", note: "לבחור 2–3 תרגילים לפתיחת השיעור", titleLang: "he", artistLang: "he" },
+  { id: "m-link-1", kind: "link", title: "Lyrical dance — ויקיפדיה", artist: "", style: "", link: "https://en.wikipedia.org/wiki/Lyrical_dance", note: "רקע על הסגנון לשיחה עם התלמידות", titleLang: "he", artistLang: "he" },
 ];
 
 // ---------- Spaces, students & groups ----------
@@ -163,7 +168,7 @@ export const lessons: SeedLesson[] = [
     date: "2026-11-16",
     time: "15:30",
     participantIds: ["hs1", "hs2", "hs3", "hs5"],
-    songIds: ["s1", "s9"],
+    materialIds: ["s1", "s9"],
     notes: "עבדנו על הכוריאוגרפיה לטקס חנוכה. לחזור על המעבר בפזמון.",
     media: [
       { id: "m1", kind: "photo", caption: "חימום" },
@@ -178,7 +183,7 @@ export const lessons: SeedLesson[] = [
     date: "2026-11-09",
     time: "15:30",
     participantIds: ["hs4", "hs5", "hs6", "hs7"],
-    songIds: ["s1"],
+    materialIds: ["s1"],
     notes: "התחלנו קטע חדש. אגם חזרה אחרי פציעה — להקל בקפיצות.",
     media: [{ id: "m4", kind: "photo", caption: "קבוצה" }],
   },
@@ -189,7 +194,7 @@ export const lessons: SeedLesson[] = [
     date: "2026-11-02",
     time: "17:00",
     participantIds: ["hs1", "hs5", "hs8", "hs9"],
-    songIds: ["s8"],
+    materialIds: ["s8"],
     notes: "",
     media: [],
   },
@@ -202,7 +207,7 @@ export const lessons: SeedLesson[] = [
     date: "2026-11-15",
     time: "19:00",
     participantIds: ["bs1", "bs2", "bs3"],
-    songIds: ["s7", "s10"],
+    materialIds: ["s7", "s10"],
     notes: "ג׳אז — איזולציות וסיבובים. רוני מוכנה לסולו.",
     media: [
       { id: "m5", kind: "video", caption: "קומבינציה באלכסון" },
@@ -216,7 +221,7 @@ export const lessons: SeedLesson[] = [
     date: "2026-11-08",
     time: "20:15",
     participantIds: ["bs4", "bs5", "bs6", "bs1"],
-    songIds: ["s5", "s6"],
+    materialIds: ["s5", "s6"],
     notes: "ערב דיסקו ישראלי. רוני הצטרפה לבוגרות.",
     media: [{ id: "m7", kind: "photo", caption: "תמונה קבוצתית" }],
   },
@@ -230,13 +235,13 @@ export const projects: SeedProject[] = [
     name: "סולו לבגרות במחול",
     type: "solo",
     participantIds: ["pl1"],
-    mainSongId: "s3",
+    mainMaterialId: "s3",
     sessions: [
       {
         id: "2026-11-17",
         date: "2026-11-17",
         time: "18:00",
-        songIds: ["s3"],
+        materialIds: ["s3"],
         notes: "לעבוד על הסיום — הירידה לרצפה עדיין לא נקייה.",
         media: [{ id: "m8", kind: "video", caption: "ריצה של הקטע לבחינה" }],
         payments: [{ studentId: "pl1", amount: 200, paid: false }],
@@ -245,7 +250,7 @@ export const projects: SeedProject[] = [
         id: "2026-11-10",
         date: "2026-11-10",
         time: "18:00",
-        songIds: ["s3"],
+        materialIds: ["s3"],
         notes: "בנינו את החלק האמצעי.",
         media: [],
         payments: [{ studentId: "pl1", amount: 200, paid: true }],
@@ -254,7 +259,7 @@ export const projects: SeedProject[] = [
         id: "2026-11-03",
         date: "2026-11-03",
         time: "18:00",
-        songIds: ["s3", "s12"],
+        materialIds: ["s3", "s12"],
         notes: "מפגש פתיחה: בחירת שיר ורעיון.",
         media: [{ id: "m9", kind: "photo", caption: "סקיצה של המבנה" }],
         payments: [{ studentId: "pl1", amount: 200, paid: true }],
@@ -266,13 +271,13 @@ export const projects: SeedProject[] = [
     name: "ריקוד לבת מצווה",
     type: "group",
     participantIds: ["pl2", "pl3", "pl4"],
-    mainSongId: "s11",
+    mainMaterialId: "s11",
     sessions: [
       {
         id: "2026-11-12",
         date: "2026-11-12",
         time: "17:00",
-        songIds: ["s11"],
+        materialIds: ["s11"],
         notes: "סנכרון בפזמון השני. נגה צריכה לחזור על הסיבוב.",
         media: [],
         payments: [
@@ -285,7 +290,7 @@ export const projects: SeedProject[] = [
         id: "2026-11-05",
         date: "2026-11-05",
         time: "17:00",
-        songIds: ["s11", "s2"],
+        materialIds: ["s11", "s2"],
         notes: "",
         media: [{ id: "m10", kind: "video", caption: "ריצה ראשונה" }],
         payments: [
@@ -301,13 +306,13 @@ export const projects: SeedProject[] = [
     name: "סולו לתחרות ג׳אז",
     type: "solo",
     participantIds: ["pl5"],
-    mainSongId: "s12",
+    mainMaterialId: "s12",
     sessions: [
       {
         id: "2026-11-14",
         date: "2026-11-14",
         time: "16:00",
-        songIds: ["s12"],
+        materialIds: ["s12"],
         notes: "עבודה על הבעה ועל שימוש בקומות.",
         media: [],
         payments: [{ studentId: "pl5", amount: 220, paid: false }],

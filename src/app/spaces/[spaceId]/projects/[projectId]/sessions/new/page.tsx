@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SessionForm, type SessionDraft } from "@/components/forms/SessionForm";
 import { saveSession } from "@/lib/actions/sessions";
-import { getProject, getSongs, getSpace } from "@/lib/data/queries";
+import { getProject, getMaterials, getSpace } from "@/lib/data/queries";
 import { todayIso } from "@/lib/format";
 
 export const metadata: Metadata = { title: "מפגש חדש" };
@@ -18,7 +18,7 @@ export default async function NewSessionPage({
 }: PageProps<"/spaces/[spaceId]/projects/[projectId]/sessions/new">) {
   const { spaceId, projectId } = await params;
   const { date } = await searchParams;
-  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getSongs()]);
+  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getMaterials()]);
   if (!space || space.kind !== "private" || !project) notFound();
 
   const latest = project.sessions[0]; // newest first
@@ -31,7 +31,7 @@ export default async function NewSessionPage({
       amount: latest?.payments.find((p) => p.studentId === studentId)?.amount ?? 0,
       paid: false,
     })),
-    songIds: latest?.songIds ?? (project.mainSongId ? [project.mainSongId] : []),
+    materialIds: latest?.materialIds ?? (project.mainMaterialId ? [project.mainMaterialId] : []),
     notes: "",
     media: [],
   };

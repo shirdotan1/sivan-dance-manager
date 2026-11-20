@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteProjectButton } from "@/components/DeleteProjectButton";
-import { SongArtist, SongTitle } from "@/components/SongText";
+import { KindBadge, MaterialAction, MaterialArtist, MaterialTitle } from "@/components/materials/MaterialText";
 import { StudentLink } from "@/components/StudentLink";
-import { getProject, getSong, getSpace } from "@/lib/data/queries";
-import { formatCurrency, formatDate, listenUrl, projectTypeLabel } from "@/lib/format";
+import { getProject, getMaterial, getSpace } from "@/lib/data/queries";
+import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
 import { studentsByIds } from "@/lib/lookup";
 
 export async function generateMetadata({
@@ -23,7 +23,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   if (!space || space.kind !== "private" || !project) notFound();
 
   const participants = studentsByIds(space.students, project.participantIds);
-  const mainSong = await getSong(project.mainSongId);
+  const mainMaterial = await getMaterial(project.mainMaterialId);
   const sessions = project.sessions; // newest first
 
   return (
@@ -56,32 +56,22 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             ))}
           </dd>
 
-          <dt className="font-medium text-muted">שיר ראשי</dt>
+          <dt className="font-medium text-muted">חומר מרכזי</dt>
           <dd>
-            {mainSong ? (
+            {mainMaterial ? (
               <>
-                {/* Title and artist on separate lines, as in the song lists: joining two
-                    English strings with a dash inside RTL text displays them reversed. */}
-                <span className="block font-medium">
-                  <SongTitle song={mainSong} />
+                {/* Title and artist on separate lines: joining two English strings
+                    with a dash inside RTL text displays them reversed. */}
+                <span className="flex flex-wrap items-center gap-2 font-medium">
+                  <KindBadge material={mainMaterial} />
+                  <MaterialTitle material={mainMaterial} />
                 </span>
-                {mainSong.artist && (
+                {mainMaterial.kind === "song" && mainMaterial.artist && (
                   <span className="block text-sm text-muted">
-                    <SongArtist song={mainSong} />
+                    <MaterialArtist material={mainMaterial} />
                   </span>
                 )}
-                <a
-                  href={listenUrl(mainSong)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tap-link text-sm text-brand-strong underline underline-offset-4"
-                >
-                  האזנה
-                  <span className="visually-hidden">
-                    {" "}
-                    ל־<SongTitle song={mainSong} /> (נפתח בלשונית חדשה)
-                  </span>
-                </a>
+                <MaterialAction material={mainMaterial} className="tap-link text-sm text-brand-strong underline underline-offset-4" />
               </>
             ) : (
               "לא נבחר"

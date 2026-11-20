@@ -6,6 +6,8 @@ export interface ActionState {
   error?: string;
   /** Increments on success so forms can reset (used as a React key). */
   done?: number;
+  /** Per-field errors (field name → message), shown next to the field. */
+  fieldErrors?: Record<string, string>;
 }
 
 export const initialActionState: ActionState = {};

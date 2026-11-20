@@ -1,15 +1,17 @@
 import "server-only";
 import { requireUser } from "@/lib/supabase/server";
-import { shortTime } from "@/lib/format";
+import { connection } from "next/server";
+import { addDays, nowTimeIsrael, shortTime, todayIso } from "@/lib/format";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
-  DanceProject,
+  Project,
   Group,
   Lesson,
   MediaItem,
   PrivateSpace,
   Session,
-  Song,
+  Material,
+  MaterialKind,
   Space,
   Student,
   StudioSpace,
@@ -47,7 +49,8 @@ interface ProjectRow {
   id: string; name: string; type: "solo" | "group"; color: string; main_song_id: string | null;
   project_participants: StudentRef[]; sessions: SessionRow[];
 }
-interface SongRow {
+interface MaterialRow {
+  kind: MaterialKind;
   id: string; title: string; artist: string; style: string; link: string | null; note: string | null;
   title_lang: "he" | "en"; artist_lang: "he" | "en";
 }
@@ -59,7 +62,7 @@ const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, arc
 const LESSON_SELECT = `id, space_id, group_id, date, time, notes, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
 const SESSION_SELECT = `id, date, time, notes, session_payments(${STUDENT_REF}, amount, paid), session_songs(song_id, position), media_items(id, kind, caption, position)`;
 const PROJECT_SELECT = `id, name, type, color, main_song_id, created_at, project_participants(${STUDENT_REF}), sessions(${SESSION_SELECT})`;
-const SONG_SELECT = "id, title, artist, style, link, note, title_lang, artist_lang";
+const MATERIAL_SELECT = "id, kind, title, artist, style, link, note, title_lang, artist_lang";
 
 // ---------- Mappers ----------
 
@@ -103,7 +106,7 @@ function mapLesson(r: LessonRow): Lesson {
     date: r.date,
     time: shortTime(r.time),
     participantIds: inPoolOrder(r.lesson_participants).map((p) => p.student_id),
-    songIds: [...r.lesson_songs].sort(byPosition).map((s) => s.song_id),
+    materialIds: [...r.lesson_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
   };
@@ -114,28 +117,29 @@ function mapSession(r: SessionRow): Session {
     id: r.id,
     date: r.date,
     time: shortTime(r.time),
-    songIds: [...r.session_songs].sort(byPosition).map((s) => s.song_id),
+    materialIds: [...r.session_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
     payments: inPoolOrder(r.session_payments).map((p) => ({ studentId: p.student_id, amount: p.amount, paid: p.paid })),
   };
 }
 
-function mapProject(r: ProjectRow): DanceProject {
+function mapProject(r: ProjectRow): Project {
   return {
     id: r.id,
     name: r.name,
     type: r.type,
     color: r.color,
     participantIds: inPoolOrder(r.project_participants).map((p) => p.student_id),
-    ...(r.main_song_id ? { mainSongId: r.main_song_id } : {}),
+    ...(r.main_song_id ? { mainMaterialId: r.main_song_id } : {}),
     sessions: [...r.sessions].map(mapSession).sort(byDateDesc),
   };
 }
 
-export function mapSong(r: SongRow): Song {
+export function mapMaterial(r: MaterialRow): Material {
   return {
     id: r.id,
+    kind: r.kind,
     title: r.title,
     artist: r.artist,
     style: r.style,
@@ -196,14 +200,14 @@ export async function getLesson(spaceId: string, lessonId: string): Promise<Less
   return data ? mapLesson(data as unknown as LessonRow) : undefined;
 }
 
-export async function getProjects(): Promise<DanceProject[]> {
+export async function getProjects(): Promise<Project[]> {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).order("created_at").order("id");
   if (error) fail("projects", error);
   return (data as unknown as ProjectRow[]).map(mapProject);
 }
 
-export async function getProject(projectId: string): Promise<DanceProject | undefined> {
+export async function getProject(projectId: string): Promise<Project | undefined> {
   if (!isUuid(projectId)) return undefined;
   const { supabase } = await requireUser();
   const { data, error } = await supabase.from("projects").select(PROJECT_SELECT).eq("id", projectId).maybeSingle();
@@ -211,19 +215,19 @@ export async function getProject(projectId: string): Promise<DanceProject | unde
   return data ? mapProject(data as unknown as ProjectRow) : undefined;
 }
 
-export async function getSongs(): Promise<Song[]> {
+export async function getMaterials(): Promise<Material[]> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("songs").select(SONG_SELECT).order("created_at").order("id");
+  const { data, error } = await supabase.from("songs").select(MATERIAL_SELECT).order("created_at").order("id");
   if (error) fail("songs", error);
-  return (data as unknown as SongRow[]).map(mapSong);
+  return (data as unknown as MaterialRow[]).map(mapMaterial);
 }
 
-export async function getSong(id: string | undefined): Promise<Song | undefined> {
+export async function getMaterial(id: string | undefined): Promise<Material | undefined> {
   if (!id || !isUuid(id)) return undefined;
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("songs").select(SONG_SELECT).eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("songs").select(MATERIAL_SELECT).eq("id", id).maybeSingle();
   if (error) fail("song", error);
-  return data ? mapSong(data as unknown as SongRow) : undefined;
+  return data ? mapMaterial(data as unknown as MaterialRow) : undefined;
 }
 
 /** URL segments are user input: reject non-UUIDs before they reach Postgres. */
@@ -449,9 +453,9 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
   };
 }
 
-// ---------- Song usage ----------
+// ---------- Material usage ----------
 
-export interface SongUse {
+export interface MaterialUse {
   href: string;
   date: string;
   label: string;
@@ -459,7 +463,7 @@ export interface SongUse {
 }
 
 /** For each song id: the lessons and sessions that use it, newest first. */
-export async function getSongUsage(): Promise<Record<string, SongUse[]>> {
+export async function getMaterialUsage(): Promise<Record<string, MaterialUse[]>> {
   const { supabase } = await requireUser();
   const [ls, ss] = await Promise.all([
     supabase.from("lesson_songs").select("song_id, lessons(id, space_id, date, spaces(name), groups(name))"),
@@ -469,8 +473,8 @@ export async function getSongUsage(): Promise<Record<string, SongUse[]>> {
   if (ss.error) fail("song usage (sessions)", ss.error);
   type L = { song_id: string; lessons: { id: string; space_id: string; date: string; spaces: { name: string } | null; groups: { name: string } | null } | null };
   type S = { song_id: string; sessions: { id: string; date: string; projects: { id: string; name: string } | null } | null };
-  const usage: Record<string, SongUse[]> = {};
-  const add = (id: string, u: SongUse) => (usage[id] ??= []).push(u);
+  const usage: Record<string, MaterialUse[]> = {};
+  const add = (id: string, u: MaterialUse) => (usage[id] ??= []).push(u);
   for (const r of ls.data as unknown as L[]) {
     if (!r.lessons) continue;
     const l = r.lessons;
@@ -493,4 +497,18 @@ export async function getSongUsage(): Promise<Record<string, SongUse[]>> {
   }
   for (const list of Object.values(usage)) list.sort((a, b) => (a.date < b.date ? 1 : -1));
   return usage;
+}
+
+// ---------- Next up (home) ----------
+
+/**
+ * The next lesson or session from now (Israel time): later today or on a
+ * coming day, within the next ~4 months. Undefined when nothing is planned.
+ */
+export async function getNextEvent(): Promise<CalendarEvent | undefined> {
+  await connection(); // "now" is request-time, never prerendered
+  const today = todayIso();
+  const now = nowTimeIsrael();
+  const events = await getCalendarEvents(today, addDays(today, 120));
+  return events.find((e) => e.date > today || e.time >= now);
 }

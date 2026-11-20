@@ -3,18 +3,20 @@
 import { useId } from "react";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
+import { materialKindLabel } from "@/lib/format";
+import { FocusOnHash } from "@/components/FocusOnHash";
 import { activeStudents } from "@/lib/lookup";
-import type { DanceProject, Song, Student } from "@/lib/types";
+import type { Project, Material, Student } from "@/lib/types";
 
 interface ProjectFormProps {
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   pool: Student[];
-  bank: Song[];
-  project?: DanceProject;
+  bank: Material[];
+  project?: Project;
   submitLabel: string;
 }
 
-/** Project: dance name, solo/group, participants (from the private pool), main song. */
+/** Project: name, solo/group, participants (from the private pool), optional main material. */
 export function ProjectForm({ action, pool, bank, project, submitLabel }: ProjectFormProps) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(action);
@@ -28,9 +30,12 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
         <div className="grid gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-name`} className="font-medium">
-              שם הריקוד <span aria-hidden="true">*</span>
+              שם הפרויקט <span aria-hidden="true">*</span>
             </label>
-            <input id={`${id}-name`} name="name" required dir="auto" autoComplete="off" defaultValue={project?.name} />
+            <span id={`${id}-name-hint`} className="text-sm text-muted">
+              למשל: הכנה לבחינה, סולו לתחרות, תוכנית אימון אישית
+            </span>
+            <input id={`${id}-name`} name="name" required aria-describedby={`${id}-name-hint`} dir="auto" autoComplete="off" defaultValue={project?.name} />
           </div>
 
           <fieldset>
@@ -59,13 +64,13 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
 
           <div className="flex flex-col gap-1">
             <label htmlFor={`${id}-song`} className="font-medium">
-              שיר ראשי
+              חומר מרכזי <span className="font-normal text-muted">(לא חובה)</span>
             </label>
-            <select id={`${id}-song`} name="mainSongId" defaultValue={project?.mainSongId ?? ""}>
+            <select id={`${id}-song`} name="mainMaterialId" defaultValue={project?.mainMaterialId ?? ""}>
               <option value="">עדיין לא נבחר</option>
-              {bank.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.artist ? `${s.title} — ${s.artist}` : s.title}
+              {bank.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {`${materialKindLabel[m.kind]}: ${m.title}${m.kind === "song" && m.artist ? ` — ${m.artist}` : ""}`}
                 </option>
               ))}
             </select>
@@ -73,7 +78,8 @@ export function ProjectForm({ action, pool, bank, project, submitLabel }: Projec
         </div>
       </fieldset>
 
-      <fieldset className="card card-section">
+      <fieldset id="participants" tabIndex={-1} className="card card-section">
+        <FocusOnHash targetId="participants" />
         <legend className="card-legend">משתתפות</legend>
         {activeStudents(pool).length === 0 ? (
           <p className="empty-state">אין תלמידות במאגר השיעורים הפרטיים. אפשר להוסיף במאגר בדף המרחב.</p>

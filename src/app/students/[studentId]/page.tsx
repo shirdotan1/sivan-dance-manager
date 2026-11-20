@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { StudentEditForm } from "@/components/StudentEditForm";
 import { getStudentCard } from "@/lib/data/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -21,6 +22,12 @@ export default async function StudentPage({ params }: Props) {
   const paid = withPayment.filter((s) => s.payment!.paid);
   const owed = withPayment.filter((s) => !s.payment!.paid).reduce((sum, s) => sum + s.payment!.amount, 0);
   const paidSum = paid.reduce((sum, s) => sum + s.payment!.amount, 0);
+  // Most recent participation (lessons and sessions are each newest first).
+  const latest = [
+    ...lessons.slice(0, 1).map((l) => ({ ...l, label: l.groupName ? `שיעור · ${l.groupName}` : "שיעור" })),
+    ...sessions.slice(0, 1).map((se) => ({ ...se, label: `מפגש · ${se.projectName}` })),
+  ].sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1))[0];
+  const totalActivity = lessons.length + sessions.length;
 
   return (
     <>
@@ -35,6 +42,45 @@ export default async function StudentPage({ params }: Props) {
         )}
         {student.archived && <span className="chip">הוסרה מהמאגר — ההיסטוריה נשמרת</span>}
       </p>
+
+      <details className="disclosure mb-6">
+        <summary>עריכת פרטים</summary>
+        <StudentEditForm student={student} />
+      </details>
+
+      {/* At a glance: balance (private) and the latest activity, above the details. */}
+      <section aria-labelledby="summary-h" className="card card-section">
+        <h2 id="summary-h" className="visually-hidden">
+          תקציר
+        </h2>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          {student.spaceKind === "private" && (
+            <div>
+              <dt className="text-sm text-muted">יתרה פתוחה</dt>
+              <dd className={`text-2xl font-extrabold ${owed > 0 ? "text-danger" : "text-success"}`}>
+                {owed > 0 ? formatCurrency(owed) : "✓ אין חוב"}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-sm text-muted">פעילות אחרונה</dt>
+            <dd>
+              {latest ? (
+                <Link href={latest.href} className="tap-link font-semibold text-brand-strong underline underline-offset-4">
+                  {formatDate(latest.date)}
+                </Link>
+              ) : (
+                <span className="font-semibold">עדיין אין</span>
+              )}
+              {latest && <span className="block text-sm text-muted">{latest.label}</span>}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted">השתתפויות</dt>
+            <dd className="font-semibold">{totalActivity}</dd>
+          </div>
+        </dl>
+      </section>
 
       {student.spaceKind === "studio" ? (
         <section aria-labelledby="groups-h" className="card card-section">

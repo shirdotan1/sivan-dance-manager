@@ -10,7 +10,7 @@ export function DeleteLessonButton({ spaceId, lessonId, label }: { spaceId: stri
       title="למחוק את השיעור?"
       description={
         <p>
-          השיעור של {label} יימחק עם רשימת המשתתפות, השירים, ההערות והמדיה שלו. התלמידות והשירים עצמם נשארים.
+          השיעור של {label} יימחק עם רשימת המשתתפות, החומרים, ההערות והמדיה שלו. התלמידות והחומרים בבנק נשארים.
         </p>
       }
       confirmLabel="מחיקת השיעור"

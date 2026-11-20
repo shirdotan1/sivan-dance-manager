@@ -1,6 +1,7 @@
 import "server-only";
 import type { requireUser } from "@/lib/supabase/server";
-import { guessLang, isSongLink, titleFromLink } from "@/lib/format";
+import { guessLang, isMaterialKind, materialKindLabel, materialLinkError, titleFromLink } from "@/lib/format";
+import type { MaterialKind } from "@/lib/types";
 
 type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
@@ -25,7 +26,7 @@ function parseJsonArray(raw: FormDataEntryValue | null): unknown[] {
 }
 
 export type ParsedParticipant = { id: string } | { name: string };
-export type ParsedSong = { id: string } | { title: string; link: string };
+export type ParsedMaterial = { id: string } | { kind: MaterialKind; title: string; link: string };
 export type ParsedMedia = { kind: "photo" | "video"; caption: string };
 
 export function parseParticipants(raw: FormDataEntryValue | null): ParsedParticipant[] {
@@ -38,15 +39,18 @@ export function parseParticipants(raw: FormDataEntryValue | null): ParsedPartici
   return out;
 }
 
-export function parseSongs(raw: FormDataEntryValue | null): ParsedSong[] | { error: string } {
-  const out: ParsedSong[] = [];
+export function parseMaterials(raw: FormDataEntryValue | null): ParsedMaterial[] | { error: string } {
+  const out: ParsedMaterial[] = [];
   for (const v of parseJsonArray(raw)) {
     if (v && typeof v === "object" && "id" in v && typeof v.id === "string" && UUID_RE.test(v.id)) out.push({ id: v.id });
     else if (v && typeof v === "object" && "title" in v) {
       const title = typeof v.title === "string" ? v.title.trim().slice(0, 200) : "";
+      if (!("kind" in v) || !isMaterialKind(v.kind)) return { error: `סוג החומר ״${title || "ללא שם"}״ לא מוכר. יש לבחור שיר, סרטון, קישור או הערה.` };
+      const kind = v.kind;
       const link = "link" in v && typeof v.link === "string" ? v.link.trim() : "";
-      if (link && !isSongLink(link)) return { error: "אחד הלינקים לשירים אינו מיוטיוב או מספוטיפיי." };
-      if (title || link) out.push({ title, link });
+      const linkError = materialLinkError(kind, link);
+      if (linkError) return { error: `${materialKindLabel[kind]} ״${title || link}״: ${linkError}` };
+      if (title || link) out.push({ kind, title, link });
     }
   }
   return out;
@@ -100,39 +104,39 @@ export async function resolveParticipants(
   return ids;
 }
 
-/** Resolves songs to ids, creating new bank songs for typed titles/links. */
-export async function resolveSongs(supabase: Supabase, entries: ParsedSong[]): Promise<string[] | { error: string }> {
+/** Resolves materials to ids, creating new bank materials (with their kind) for typed titles/links. */
+export async function resolveMaterials(supabase: Supabase, entries: ParsedMaterial[]): Promise<string[] | { error: string }> {
   const ids: string[] = [];
   for (const e of entries) {
     if ("id" in e) {
       if (!ids.includes(e.id)) ids.push(e.id);
       continue;
     }
-    const title = e.title || titleFromLink(e.link);
+    const title = e.title || titleFromLink(e.link, e.kind);
     const { data, error } = await supabase
       .from("songs")
-      .insert({ title, link: e.link || null, title_lang: guessLang(title), artist_lang: "he" })
+      .insert({ kind: e.kind, title, link: e.link || null, title_lang: guessLang(title), artist_lang: "he" })
       .select("id")
       .single();
-    if (error) return { error: `שמירת השיר ״${title}״ נכשלה.` };
+    if (error) return { error: `שמירת ״${title}״ נכשלה.` };
     ids.push(data.id);
   }
   return ids;
 }
 
-/** Replaces a lesson's or session's songs (ordered) and media placeholders. */
-export async function replaceSongsAndMedia(
+/** Replaces a lesson's or session's materials (ordered; stored in *_songs) and media placeholders. */
+export async function replaceMaterialsAndMedia(
   supabase: Supabase,
   owner: { lesson_id: string } | { session_id: string },
-  songIds: string[],
+  materialIds: string[],
   media: ParsedMedia[],
 ): Promise<string | null> {
   const songTable = "lesson_id" in owner ? "lesson_songs" : "session_songs";
   const [ownerCol, ownerId] = Object.entries(owner)[0];
   const del = await supabase.from(songTable).delete().eq(ownerCol, ownerId);
   if (del.error) return del.error.message;
-  if (songIds.length) {
-    const ins = await supabase.from(songTable).insert(songIds.map((song_id, position) => ({ ...owner, song_id, position })));
+  if (materialIds.length) {
+    const ins = await supabase.from(songTable).insert(materialIds.map((song_id, position) => ({ ...owner, song_id, position })));
     if (ins.error) return ins.error.message;
   }
   const delM = await supabase.from("media_items").delete().eq(ownerCol, ownerId);

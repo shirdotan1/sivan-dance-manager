@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ProjectForm } from "@/components/forms/ProjectForm";
 import { saveProject } from "@/lib/actions/projects";
-import { getProject, getSongs, getSpace } from "@/lib/data/queries";
+import { getProject, getMaterials, getSpace } from "@/lib/data/queries";
 
 export const metadata: Metadata = { title: "עריכת פרויקט" };
 
 export default async function EditProjectPage({ params }: PageProps<"/spaces/[spaceId]/projects/[projectId]/edit">) {
   const { spaceId, projectId } = await params;
-  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getSongs()]);
+  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getMaterials()]);
   if (!space || space.kind !== "private" || !project) notFound();
   return (
     <>

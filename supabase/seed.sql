@@ -61,19 +61,21 @@ insert into public.group_members (group_id, student_id) values
   ('40679bac-c7fb-5313-8458-66ac5702d6ca', '2d6124dd-a333-5be1-88d6-b3920278d247'),
   ('40679bac-c7fb-5313-8458-66ac5702d6ca', 'f4066f81-a0bd-5826-9211-09990ec97333');
 
-insert into public.songs (id, title, artist, style, link, note, title_lang, artist_lang, created_at) values
-  ('694094b2-3b2d-5ee0-b190-b6a434e79d1d', 'טודו בום', 'סטטיק ובן אל תבורי', 'היפ הופ', null, 'מצוין לחימום — קצב מדבק', 'he', 'he', '2026-09-01T08:00:25.000Z'),
-  ('93076019-6439-539d-82f1-c694a16757dc', 'תל אביב', 'עומר אדם', 'פופ ים-תיכוני', null, null, 'he', 'he', '2026-09-01T08:00:26.000Z'),
-  ('ed8655c4-62f0-5250-a795-d74b6cdd9d43', 'Toy', 'נטע ברזילי', 'פופ', null, 'הגרסה המקוצרת לבחינה — 2:30', 'en', 'he', '2026-09-01T08:00:27.000Z'),
-  ('a125d653-97b2-5433-a983-56358312d68f', 'הללויה', 'גלי עטרי', 'קלאסי ישראלי', null, null, 'he', 'he', '2026-09-01T08:00:28.000Z'),
-  ('9dafae51-902b-5df2-93ba-243c88344537', 'אבניבי', 'יזהר כהן', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:29.000Z'),
-  ('02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 'דיווה', 'דנה אינטרנשיונל', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:30.000Z'),
-  ('6ac15945-ea7b-5a07-904e-5f9e515a8c0d', 'Uptown Funk', 'Mark Ronson ft. Bruno Mars', 'פאנק', null, 'לעבוד על איזולציות בפזמון', 'en', 'en', '2026-09-01T08:00:31.000Z'),
-  ('75a85f04-81a7-5c33-9ea2-43b4105f4ef2', 'Dancing Queen', 'ABBA', 'דיסקו', null, null, 'en', 'en', '2026-09-01T08:00:32.000Z'),
-  ('e94a29d4-6c76-5747-8f99-a85d6cd0581d', 'Shake It Off', 'Taylor Swift', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:33.000Z'),
-  ('8509f271-19f2-5d54-a9d2-f00ba6ac16a0', 'Levitating', 'Dua Lipa', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:34.000Z'),
-  ('70877f81-fed3-5eb1-aed2-ee236f4f33ea', 'Can''t Stop the Feeling!', 'Justin Timberlake', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:35.000Z'),
-  ('98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', 'Happy', 'Pharrell Williams', 'סול', null, null, 'en', 'en', '2026-09-01T08:00:36.000Z');
+insert into public.songs (id, kind, title, artist, style, link, note, title_lang, artist_lang, created_at) values
+  ('694094b2-3b2d-5ee0-b190-b6a434e79d1d', 'song', 'טודו בום', 'סטטיק ובן אל תבורי', 'היפ הופ', null, 'מצוין לחימום — קצב מדבק', 'he', 'he', '2026-09-01T08:00:25.000Z'),
+  ('93076019-6439-539d-82f1-c694a16757dc', 'song', 'תל אביב', 'עומר אדם', 'פופ ים-תיכוני', null, null, 'he', 'he', '2026-09-01T08:00:26.000Z'),
+  ('ed8655c4-62f0-5250-a795-d74b6cdd9d43', 'song', 'Toy', 'נטע ברזילי', 'פופ', null, 'הגרסה המקוצרת לבחינה — 2:30', 'en', 'he', '2026-09-01T08:00:27.000Z'),
+  ('a125d653-97b2-5433-a983-56358312d68f', 'song', 'הללויה', 'גלי עטרי', 'קלאסי ישראלי', null, null, 'he', 'he', '2026-09-01T08:00:28.000Z'),
+  ('9dafae51-902b-5df2-93ba-243c88344537', 'song', 'אבניבי', 'יזהר כהן', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:29.000Z'),
+  ('02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 'song', 'דיווה', 'דנה אינטרנשיונל', 'דיסקו', null, null, 'he', 'he', '2026-09-01T08:00:30.000Z'),
+  ('6ac15945-ea7b-5a07-904e-5f9e515a8c0d', 'song', 'Uptown Funk', 'Mark Ronson ft. Bruno Mars', 'פאנק', null, 'לעבוד על איזולציות בפזמון', 'en', 'en', '2026-09-01T08:00:31.000Z'),
+  ('75a85f04-81a7-5c33-9ea2-43b4105f4ef2', 'song', 'Dancing Queen', 'ABBA', 'דיסקו', null, null, 'en', 'en', '2026-09-01T08:00:32.000Z'),
+  ('e94a29d4-6c76-5747-8f99-a85d6cd0581d', 'song', 'Shake It Off', 'Taylor Swift', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:33.000Z'),
+  ('8509f271-19f2-5d54-a9d2-f00ba6ac16a0', 'song', 'Levitating', 'Dua Lipa', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:34.000Z'),
+  ('70877f81-fed3-5eb1-aed2-ee236f4f33ea', 'song', 'Can''t Stop the Feeling!', 'Justin Timberlake', 'פופ', null, null, 'en', 'en', '2026-09-01T08:00:35.000Z'),
+  ('98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', 'song', 'Happy', 'Pharrell Williams', 'סול', null, null, 'en', 'en', '2026-09-01T08:00:36.000Z'),
+  ('28955036-db73-5542-84ed-b33f6162630d', 'video', 'רעיונות לחימום ג׳אז לירי', '', '', 'https://www.youtube.com/results?search_query=lyrical+jazz+warm+up', 'לבחור 2–3 תרגילים לפתיחת השיעור', 'he', 'he', '2026-09-01T08:00:37.000Z'),
+  ('a0b2513b-d8e0-5543-81e6-894d5bf928f6', 'link', 'Lyrical dance — ויקיפדיה', '', '', 'https://en.wikipedia.org/wiki/Lyrical_dance', 'רקע על הסגנון לשיחה עם התלמידות', 'he', 'he', '2026-09-01T08:00:38.000Z');
 
 insert into public.lessons (id, space_id, group_id, date, time, notes) values
   ('98788b45-5ce4-58c2-b8e1-48d2e139cf43', 'new-high-school', '2ae03b31-b3fa-5569-bff9-2d071b1439d2', '2026-11-16', '15:30', 'עבדנו על הכוריאוגרפיה לטקס חנוכה. לחזור על המעבר בפזמון.'),
@@ -114,9 +116,9 @@ insert into public.lesson_songs (lesson_id, song_id, position) values
   ('c2e67cfc-0902-5f8a-84f6-10f9ff9e1533', '02dc52a7-dbb9-5f65-8e1e-2d944b17737c', 1);
 
 insert into public.projects (id, space_id, name, type, main_song_id, color, created_at) values
-  ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', 'private-lessons', 'סולו לבגרות במחול', 'solo', 'ed8655c4-62f0-5250-a795-d74b6cdd9d43', '#9a7a0c', '2026-09-01T08:00:37.000Z'),
-  ('1b39a7c2-6d91-5cff-881c-d9940dae98cc', 'private-lessons', 'ריקוד לבת מצווה', 'group', '70877f81-fed3-5eb1-aed2-ee236f4f33ea', '#11858f', '2026-09-01T08:00:38.000Z'),
-  ('3c25f9f3-f619-54e6-8396-289054864315', 'private-lessons', 'סולו לתחרות ג׳אז', 'solo', '98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', '#c43d3d', '2026-09-01T08:00:39.000Z');
+  ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', 'private-lessons', 'סולו לבגרות במחול', 'solo', 'ed8655c4-62f0-5250-a795-d74b6cdd9d43', '#9a7a0c', '2026-09-01T08:00:39.000Z'),
+  ('1b39a7c2-6d91-5cff-881c-d9940dae98cc', 'private-lessons', 'ריקוד לבת מצווה', 'group', '70877f81-fed3-5eb1-aed2-ee236f4f33ea', '#11858f', '2026-09-01T08:00:40.000Z'),
+  ('3c25f9f3-f619-54e6-8396-289054864315', 'private-lessons', 'סולו לתחרות ג׳אז', 'solo', '98cc9e6d-d7f5-5db9-8462-3ac4efd3dfb0', '#c43d3d', '2026-09-01T08:00:41.000Z');
 
 insert into public.project_participants (project_id, student_id) values
   ('f4035a1e-3e09-5cbb-b3a1-44d8ae946546', '496c744f-85db-5390-aa6c-c871fccb8922'),

@@ -5,10 +5,10 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteSessionButton } from "@/components/DeleteSessionButton";
 import { PrevNext } from "@/components/PrevNext";
 import { PaymentsQuick } from "@/components/PaymentsQuick";
-import { MediaView, NotesView, SongsView } from "@/components/view/EventView";
-import { getProject, getSongs, getSpace } from "@/lib/data/queries";
+import { MediaView, NotesView, MaterialsView } from "@/components/view/EventView";
+import { getProject, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate, projectTypeLabel } from "@/lib/format";
-import { songsByIds, studentsByIds } from "@/lib/lookup";
+import { materialsByIds, studentsByIds } from "@/lib/lookup";
 
 type Props = PageProps<"/spaces/[spaceId]/projects/[projectId]/sessions/[sessionId]">;
 
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SessionPage({ params, searchParams }: Props) {
   const { spaceId, projectId, sessionId } = await params;
   const { saved } = await searchParams;
-  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getSongs()]);
+  const [space, project, bank] = await Promise.all([getSpace(spaceId), getProject(projectId), getMaterials()]);
   const session = project?.sessions.find((s) => s.id === sessionId);
   if (!space || space.kind !== "private" || !project || !session) notFound();
 
@@ -64,8 +64,21 @@ export default async function SessionPage({ params, searchParams }: Props) {
         next={later && { href: href(later.id), date: later.date }}
       />
 
+      <p className="mb-4 flex justify-end">
+        <Link
+          href={`/spaces/${space.id}/projects/${project.id}/edit#participants`}
+          className="btn btn-secondary btn-compact"
+          aria-describedby="participants-edit-hint"
+        >
+          עריכת משתתפות
+        </Link>
+      </p>
+      <p id="participants-edit-hint" className="visually-hidden">
+        המשתתפות שייכות לפרויקט; העריכה נפתחת בעריכת הפרויקט.
+      </p>
+
       <PaymentsQuick sessionId={session.id} payments={session.payments} students={space.students} />
-      <SongsView songs={songsByIds(bank, session.songIds)} title="שירים במפגש" />
+      <MaterialsView materials={materialsByIds(bank, session.materialIds)} title="חומרים במפגש" />
       <NotesView notes={session.notes} />
       <MediaView media={session.media} />
 

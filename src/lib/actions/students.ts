@@ -54,3 +54,48 @@ export async function removeStudentFromPool(studentId: string): Promise<void> {
   await supabase.from("group_members").delete().eq("student_id", studentId);
   refresh();
 }
+
+/**
+ * Fixes a student's name or phone on the SAME record, so her history,
+ * participation and payments stay attached. (Leaving for real is
+ * removeStudentFromPool.) A name already used by another student in the
+ * same space — active or removed — is refused to avoid two look-alikes.
+ */
+export async function updateStudent(studentId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const name = field(formData, "name").replace(/\s+/g, " ");
+  const phone = field(formData, "phone");
+  if (!name) return { error: "יש להזין שם תלמידה." };
+
+  const { supabase } = await requireUser();
+  const { data: student, error: findError } = await supabase
+    .from("students")
+    .select("id, space_id")
+    .eq("id", studentId)
+    .maybeSingle();
+  if (findError || !student) return { error: "התלמידה לא נמצאה." };
+
+  // Never rename without a completed check. limit(1), not maybeSingle():
+  // two existing students may already share the name (active + removed).
+  const { data: clashes, error: clashError } = await supabase
+    .from("students")
+    .select("id, archived_at")
+    .eq("space_id", student.space_id)
+    .eq("name", name)
+    .neq("id", studentId)
+    .order("archived_at", { ascending: false, nullsFirst: true })
+    .limit(1);
+  if (clashError) return { error: "בדיקת השם נכשלה, והשם לא שונה. כדאי לנסות שוב." };
+  const clash = clashes[0];
+  if (clash) {
+    return {
+      error: clash.archived_at
+        ? `יש תלמידה שהוסרה מהמאגר בשם ${name}. אפשר להחזיר אותה דרך הוספה למאגר.`
+        : `יש כבר תלמידה בשם ${name} במאגר.`,
+    };
+  }
+
+  const { error } = await supabase.from("students").update({ name, phone }).eq("id", studentId);
+  if (error) return { error: "השמירה נכשלה. כדאי לנסות שוב." };
+  refresh();
+  return { message: `הפרטים של ${name} עודכנו.`, done: Date.now() };
+}

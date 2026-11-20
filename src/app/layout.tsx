@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | השיעורים של סיון",
     default: "השיעורים של סיון",
   },
-  description: "ניהול שיעורי ריקוד: קבוצות, משתתפות, פרויקטים, שירים ותשלומים",
+  description: "ניהול שיעורים ואימונים: קבוצות, משתתפות, פרויקטים, חומרים ותשלומים",
 };
 
 export const viewport: Viewport = {
