@@ -35,8 +35,8 @@ export function PaymentsQuick({ sessionId, payments, students }: { sessionId: st
         <ul className="divider-list" role="list">
           {optimistic.map((p) => (
             <li key={p.studentId} className="flex flex-wrap items-center justify-between gap-3 py-2">
-              <span>
-                <StudentLink student={{ id: p.studentId, name: nameOf(p.studentId) }} className="block font-semibold" />
+              <span className="flex flex-col items-start">
+                <StudentLink student={{ id: p.studentId, name: nameOf(p.studentId) }} className="font-semibold" />
                 <span className="text-sm text-muted">{formatCurrency(p.amount)}</span>
               </span>
               <span className="flex flex-col items-start gap-1">
