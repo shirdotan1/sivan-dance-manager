@@ -2,10 +2,10 @@
 
 import { useId, useState } from "react";
 import { SwitchInput } from "@/components/SwitchInput";
-import { formatCurrency, type Payment, type Student } from "@/data/demo";
-import { sectionClass } from "@/components/lesson/styles";
+import { formatCurrency } from "@/lib/format";
+import type { Payment, Student } from "@/lib/types";
 
-interface PaymentsSectionProps {
+interface PaymentsFieldProps {
   /** The space's student pool (for names). */
   students: Student[];
   /** One payment row per participant. */
@@ -13,8 +13,12 @@ interface PaymentsSectionProps {
   initial: Payment[];
 }
 
-/** Session payments: amount + paid switch per participant, with a summary (in memory only). */
-export function PaymentsSection({ students, participantIds, initial }: PaymentsSectionProps) {
+/**
+ * Session payments inside the session form: amount + paid switch per
+ * project participant, with a live paid-of-total summary. Submitted as
+ * amount_<studentId> / paid_<studentId> fields.
+ */
+export function PaymentsField({ students, participantIds, initial }: PaymentsFieldProps) {
   const baseId = useId();
   const [payments, setPayments] = useState<Payment[]>(() =>
     participantIds.map(
@@ -30,18 +34,14 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
   const nameOf = (id: string) => students.find((s) => s.id === id)?.name ?? "תלמידה";
 
   return (
-    <section aria-labelledby={`${baseId}-heading`} className={sectionClass}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`${baseId}-heading`}>
-          תשלומים
-        </h2>
-        <p className="text-sm text-muted">
-          שולמו {formatCurrency(paidTotal)} מתוך {formatCurrency(total)}
-        </p>
-      </div>
+    <fieldset className="card card-section">
+      <legend className="card-legend">תשלומים</legend>
+      <p className="mb-3 text-sm text-muted" aria-live="polite">
+        שולמו {formatCurrency(paidTotal)} מתוך {formatCurrency(total)}
+      </p>
 
       {payments.length === 0 ? (
-        <p className="empty-state">אין משתתפות במפגש הזה.</p>
+        <p className="empty-state">אין משתתפות בפרויקט. אפשר להוסיף בעריכת הפרויקט.</p>
       ) : (
         <ul className="divider-list" role="list">
           {payments.map((payment) => {
@@ -59,7 +59,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
                       </label>
                       <input
                         id={amountId}
-                        name={`amount-${payment.studentId}`}
+                        name={`amount_${payment.studentId}`}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
@@ -81,7 +81,7 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
                       <label htmlFor={paidId} className="flex cursor-pointer items-center gap-3 font-medium">
                         <SwitchInput
                           id={paidId}
-                          name={`paid-${payment.studentId}`}
+                          name={`paid_${payment.studentId}`}
                           checked={payment.paid}
                           onChange={(e) => update(payment.studentId, { paid: e.target.checked })}
                         />
@@ -104,7 +104,6 @@ export function PaymentsSection({ students, participantIds, initial }: PaymentsS
           })}
         </ul>
       )}
-      <p className="mt-3 text-sm text-muted">שינויים כאן נשמרים רק בזיכרון ויתאפסו ברענון (דמו).</p>
-    </section>
+    </fieldset>
   );
 }

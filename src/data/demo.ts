@@ -1,122 +1,84 @@
 /**
- * Demo data for the UI skeleton.
- * Everything here is fake: names, phone numbers, lessons and projects are invented.
- * There is no persistence — the UI keeps edits in memory only.
+ * Demo data — the source for supabase/seed.sql (scripts/generate-seed.mjs).
+ * The app itself reads from the database; nothing here is imported at runtime.
+ * Everything is fake: names, phone numbers, lessons and projects are invented.
+ * IDs are short readable keys; the seed turns them into stable UUIDs.
  */
 
-// ---------- Types ----------
+export type SeedLang = "he" | "en";
 
-export type StudioSpaceId = "new-high-school" | "balance-studio";
-export type PrivateSpaceId = "private-lessons";
-export type SpaceId = StudioSpaceId | PrivateSpaceId;
+export interface SeedSong {
+  id: string;
+  title: string;
+  artist: string;
+  style: string;
+  link?: string;
+  note?: string;
+  titleLang: SeedLang;
+  artistLang: SeedLang;
+}
 
-export interface Student {
+export interface SeedStudent {
   id: string;
   name: string;
-  /** Example phone number (fake). */
   phone: string;
 }
 
-/** A class group inside a studio space; its members come from the space's pool. */
-export interface Group {
+export interface SeedGroup {
   id: string;
   name: string;
   studentIds: string[];
 }
 
-interface SpaceBase {
+export interface SeedSpace {
+  id: "new-high-school" | "balance-studio" | "private-lessons";
   name: string;
+  kind: "studio" | "private";
   description: string;
-  /** Each space has its own student pool. */
-  students: Student[];
+  students: SeedStudent[];
+  groups?: SeedGroup[];
 }
 
-export interface StudioSpace extends SpaceBase {
-  id: StudioSpaceId;
-  kind: "studio";
-  groups: Group[];
-}
-
-export interface PrivateSpace extends SpaceBase {
-  id: PrivateSpaceId;
-  kind: "private";
-}
-
-export type Space = StudioSpace | PrivateSpace;
-
-export type SongLang = "he" | "en";
-
-export interface Song {
+export interface SeedMedia {
   id: string;
-  title: string;
-  artist: string;
-  style: string;
-  /** YouTube or Spotify link (optional). Without it, listening falls back to a YouTube search. */
-  link?: string;
-  /** Sivan's personal note about the song (optional). */
-  note?: string;
-  /** Languages of title and artist (they can differ), for lang attributes. */
-  titleLang: SongLang;
-  artistLang: SongLang;
-}
-
-export type MediaKind = "photo" | "video";
-
-export interface MediaItem {
-  id: string;
-  kind: MediaKind;
+  kind: "photo" | "video";
   caption: string;
 }
 
-export interface Payment {
-  studentId: string;
-  /** Amount in ILS. */
-  amount: number;
-  paid: boolean;
-}
-
-/** A lesson in a studio space. */
-export interface Lesson {
+export interface SeedLesson {
   id: string;
-  spaceId: StudioSpaceId;
-  /** ISO date, e.g. "2026-11-16". */
+  spaceId: "new-high-school" | "balance-studio";
+  groupId?: string;
   date: string;
-  /** 24h time, e.g. "17:30". */
   time: string;
-  /** Students who actually took part (from the space's pool). */
   participantIds: string[];
   songIds: string[];
   notes: string;
-  media: MediaItem[];
+  media: SeedMedia[];
 }
 
-export type ProjectType = "solo" | "group";
-
-/** A rehearsal session of a private dance project. */
-export interface Session {
+export interface SeedSession {
   id: string;
   date: string;
   time: string;
   songIds: string[];
   notes: string;
-  media: MediaItem[];
-  /** One entry per project participant. */
-  payments: Payment[];
+  media: SeedMedia[];
+  payments: { studentId: string; amount: number; paid: boolean }[];
 }
 
-/** A private project: preparing one choreography, solo or group. */
-export interface DanceProject {
+export interface SeedProject {
   id: string;
   name: string;
-  type: ProjectType;
+  type: "solo" | "group";
   participantIds: string[];
   mainSongId: string;
-  sessions: Session[];
+  sessions: SeedSession[];
 }
 
 // ---------- Song bank ----------
 
-export const songs: Song[] = [
+export const songs: SeedSong[] = [
   { id: "s1", title: "טודו בום", artist: "סטטיק ובן אל תבורי", style: "היפ הופ", titleLang: "he", artistLang: "he", note: "מצוין לחימום — קצב מדבק" },
   { id: "s2", title: "תל אביב", artist: "עומר אדם", style: "פופ ים-תיכוני", titleLang: "he", artistLang: "he" },
   { id: "s3", title: "Toy", artist: "נטע ברזילי", style: "פופ", titleLang: "en", artistLang: "he", note: "הגרסה המקוצרת לבחינה — 2:30" },
@@ -133,7 +95,7 @@ export const songs: Song[] = [
 
 // ---------- Spaces, students & groups ----------
 
-export const spaces: Space[] = [
+export const spaces: SeedSpace[] = [
   {
     id: "new-high-school",
     name: "תיכון חדש",
@@ -192,11 +154,12 @@ export const spaces: Space[] = [
 
 // ---------- Studio lessons ----------
 
-export const lessons: Lesson[] = [
+export const lessons: SeedLesson[] = [
   // תיכון חדש
   {
     id: "hs-2026-11-16",
     spaceId: "new-high-school",
+    groupId: "hs-g9",
     date: "2026-11-16",
     time: "15:30",
     participantIds: ["hs1", "hs2", "hs3", "hs5"],
@@ -211,6 +174,7 @@ export const lessons: Lesson[] = [
   {
     id: "hs-2026-11-09",
     spaceId: "new-high-school",
+    groupId: "hs-g10",
     date: "2026-11-09",
     time: "15:30",
     participantIds: ["hs4", "hs5", "hs6", "hs7"],
@@ -221,6 +185,7 @@ export const lessons: Lesson[] = [
   {
     id: "hs-2026-11-02",
     spaceId: "new-high-school",
+    groupId: "hs-troupe",
     date: "2026-11-02",
     time: "17:00",
     participantIds: ["hs1", "hs5", "hs8", "hs9"],
@@ -233,6 +198,7 @@ export const lessons: Lesson[] = [
   {
     id: "bs-2026-11-15",
     spaceId: "balance-studio",
+    groupId: "bs-teens",
     date: "2026-11-15",
     time: "19:00",
     participantIds: ["bs1", "bs2", "bs3"],
@@ -246,6 +212,7 @@ export const lessons: Lesson[] = [
   {
     id: "bs-2026-11-08",
     spaceId: "balance-studio",
+    groupId: "bs-adults",
     date: "2026-11-08",
     time: "20:15",
     participantIds: ["bs4", "bs5", "bs6", "bs1"],
@@ -257,7 +224,7 @@ export const lessons: Lesson[] = [
 
 // ---------- Private dance projects ----------
 
-export const projects: DanceProject[] = [
+export const projects: SeedProject[] = [
   {
     id: "bagrut-ella",
     name: "סולו לבגרות במחול",
@@ -348,91 +315,3 @@ export const projects: DanceProject[] = [
     ],
   },
 ];
-
-// ---------- Helpers ----------
-
-export function getSpace(id: string): Space | undefined {
-  return spaces.find((s) => s.id === id);
-}
-
-export const studioSpaces = spaces.filter((s): s is StudioSpace => s.kind === "studio");
-
-export const privateSpace = spaces.find((s): s is PrivateSpace => s.kind === "private")!;
-
-const byDateDesc = <T extends { date: string; time: string }>(a: T, b: T) =>
-  a.date + a.time < b.date + b.time ? 1 : -1;
-
-export function getLessonsForSpace(spaceId: string): Lesson[] {
-  return lessons.filter((l) => l.spaceId === spaceId).sort(byDateDesc);
-}
-
-export function getLesson(spaceId: string, lessonId: string): Lesson | undefined {
-  return lessons.find((l) => l.spaceId === spaceId && l.id === lessonId);
-}
-
-export function getProject(projectId: string): DanceProject | undefined {
-  return projects.find((p) => p.id === projectId);
-}
-
-export function getSessions(project: DanceProject): Session[] {
-  return [...project.sessions].sort(byDateDesc);
-}
-
-export function getSession(project: DanceProject, sessionId: string): Session | undefined {
-  return project.sessions.find((s) => s.id === sessionId);
-}
-
-export function getStudents(space: Space, ids: string[]): Student[] {
-  return ids
-    .map((id) => space.students.find((s) => s.id === id))
-    .filter((s): s is Student => Boolean(s));
-}
-
-export function getSong(id: string): Song | undefined {
-  return songs.find((s) => s.id === id);
-}
-
-/** Link for listening: the song's own link, or a YouTube search as a fallback. */
-export function listenUrl(song: Song): string {
-  if (song.link) return song.link;
-  const query = [song.title, song.artist].filter(Boolean).join(" ");
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-}
-
-/** Full-match regex (for the `pattern` attribute) for YouTube/Spotify links. */
-export const SONG_LINK_PATTERN =
-  "https?://([a-z0-9\\-]+\\.)*(youtube\\.com|youtu\\.be|spotify\\.com)(/.*)?";
-
-const songLinkRegex = new RegExp(`^(?:${SONG_LINK_PATTERN})$`, "i");
-
-export function isSongLink(value: string): boolean {
-  return songLinkRegex.test(value.trim());
-}
-
-export const projectTypeLabel: Record<ProjectType, string> = {
-  solo: "סולו",
-  group: "קבוצתי",
-};
-
-const dateFormatter = new Intl.DateTimeFormat("he-IL", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-/** Formats an ISO date (YYYY-MM-DD) in Hebrew, e.g. "יום שני, 16 בנובמבר 2026". */
-export function formatDate(isoDate: string): string {
-  return dateFormatter.format(new Date(`${isoDate}T00:00:00Z`));
-}
-
-const currencyFormatter = new Intl.NumberFormat("he-IL", {
-  style: "currency",
-  currency: "ILS",
-  maximumFractionDigits: 0,
-});
-
-export function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
