@@ -69,3 +69,20 @@ test("signed URLs are bound and short-lived; the media API is never cached", asy
 
   expect((await request.delete(`/api/media/${mediaId}`)).status()).toBe(200);
 });
+
+/** Every table — including lesson_series (migration 004) — refuses anonymous reads. */
+test("no table can be read anonymously with the public key", async ({}, info) => {
+  test.skip(info.project.name !== "phone-390", "one database for both widths");
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+  const tables = [
+    "spaces", "students", "groups", "group_members", "songs", "lesson_series", "lessons", "lesson_participants",
+    "lesson_songs", "projects", "project_participants", "sessions", "session_payments", "session_songs", "media_items",
+  ];
+  for (const t of tables) {
+    const res = await fetch(`${url}/rest/v1/${t}?select=*&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    const body = await res.json().catch(() => null);
+    expect(Array.isArray(body) && body.length > 0, `${t} returned rows anonymously`).toBe(false);
+    expect([401, 403], `${t}: status ${res.status}`).toContain(res.status);
+  }
+});
