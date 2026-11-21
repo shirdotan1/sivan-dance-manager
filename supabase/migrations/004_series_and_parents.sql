@@ -33,6 +33,14 @@
 --
 -- SAFE TO RE-RUN: yes — "if not exists" / guarded DO blocks throughout.
 --       No explicit transaction, so it behaves the same in the SQL Editor.
+--
+-- STATUS: run on PRODUCTION first on 2026-11-21 (by mistake, before the
+--       test project — harmless: additive, and the live code did not read
+--       it; verified anonymously that the columns exist and lesson_series
+--       refuses anonymous reads). Then run on the TEST project the same
+--       day and verified through the API (fields, defaults, anonymous read
+--       refused, ON CONFLICT dedup, pair check, restrict). Nothing left to
+--       run for this file.
 -- =====================================================================
 
 -- 1. Weekly slots
