@@ -136,6 +136,9 @@ export function shortTime(time: string): string {
   return time.slice(0, 5);
 }
 
+/** Hebrew weekday names, 0 = Sunday. */
+export const WEEKDAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"] as const;
+
 /** Current wall-clock time in Israel as HH:MM. */
 export function nowTimeIsrael(): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());

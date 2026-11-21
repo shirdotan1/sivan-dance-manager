@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { renewSeries } from "@/lib/data/series";
+import { requireUser } from "@/lib/supabase/server";
 import { getCalendarEvents, getCalendarLegend, getProjects, getSpaces, type CalendarEvent } from "@/lib/data/queries";
 import {
   WEEKDAYS,
@@ -31,6 +33,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const { first } = monthRange(month);
   const selected = isPlainDate(dayParam) && dayParam.slice(0, 7) === month ? dayParam : today.startsWith(month) ? today : first;
 
+  // Weekly slots: fill the next 8 weeks before showing the month (failure must not hide the calendar).
+  const { supabase } = await requireUser();
+  await renewSeries(supabase).catch((e) => console.error("series renewal failed", e));
   const [events, legend, spaces, projects] = await Promise.all([
     getCalendarEvents(gridFirst, gridLast),
     getCalendarLegend(),

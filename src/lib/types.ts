@@ -8,6 +8,9 @@ export interface Student {
   id: string;
   name: string;
   phone: string;
+  /** Parent contact (optional; reminder recipient only). */
+  parentName?: string;
+  parentPhone?: string;
   /** Removed from the pool (history is kept). */
   archived?: boolean;
 }
@@ -97,6 +100,28 @@ export interface Lesson {
   materialIds: string[];
   notes: string;
   media: MediaItem[];
+  /** Weekly slot this lesson is an occurrence of (absent = a one-off lesson). */
+  seriesId?: string;
+  /** The slot date this occurrence stands for (kept when moved by hand). */
+  seriesDate?: string;
+  /** A cancelled occurrence (kept, never deleted). */
+  cancelled?: boolean;
+  /** Changed by hand: slot changes don't touch these fields. */
+  dateOverridden?: boolean;
+  timeOverridden?: boolean;
+}
+
+/** A weekly slot in a studio space; each occurrence is a real lesson. */
+export interface LessonSeries {
+  id: string;
+  spaceId: StudioSpaceId;
+  groupId?: string;
+  /** 0 = Sunday … 6 = Saturday. */
+  weekday: number;
+  time: string;
+  startsOn: string;
+  /** Set when stopped: no occurrences on or after this date are created. */
+  stopsOn?: string;
 }
 
 export type ProjectType = "solo" | "group";

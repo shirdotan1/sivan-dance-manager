@@ -49,6 +49,11 @@ export default async function LessonPage({ params, searchParams }: Props) {
       <p className="mb-2 text-muted">
         {space.name} · בשעה <time dateTime={`${lesson.date}T${lesson.time}`}>{lesson.time}</time>
       </p>
+      {lesson.seriesId && (
+        <p className="mb-2">
+          <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm">משבצת שבועית</span>
+        </p>
+      )}
       {group && (
         <p className="mb-4 flex items-center gap-2">
           <span aria-hidden="true" className="inline-block size-3 rounded-full" style={{ background: group.color }} />

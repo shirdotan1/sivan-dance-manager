@@ -28,7 +28,9 @@ import type {
 
 /** A link row to a student, with the student's creation time for pool ordering. */
 interface StudentRef { student_id: string; students: { created_at: string } | null }
-interface StudentRow { id: string; name: string; phone: string; archived_at: string | null; created_at: string }
+interface StudentRow {
+  id: string; name: string; phone: string; parent_name: string; parent_phone: string; archived_at: string | null; created_at: string;
+}
 interface GroupRow { id: string; name: string; color: string; created_at: string; group_members: StudentRef[] }
 interface SpaceRow {
   id: string; name: string; kind: "studio" | "private"; description: string;
@@ -38,6 +40,8 @@ interface MediaRow { id: string; kind: "photo" | "video"; caption: string; posit
 interface SongLinkRow { song_id: string; position: number }
 interface LessonRow {
   id: string; space_id: string; group_id: string | null; date: string; time: string; notes: string;
+  series_id: string | null; series_date: string | null; cancelled_at: string | null;
+  date_overridden: boolean; time_overridden: boolean;
   lesson_participants: StudentRef[]; lesson_songs: SongLinkRow[]; media_items: MediaRow[];
 }
 interface SessionRow {
@@ -58,8 +62,8 @@ interface MaterialRow {
 // ---------- Selects ----------
 
 const STUDENT_REF = "student_id, students(created_at)";
-const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, archived_at, created_at), groups(id, name, color, created_at, group_members(${STUDENT_REF}))`;
-const LESSON_SELECT = `id, space_id, group_id, date, time, notes, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
+const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, parent_name, parent_phone, archived_at, created_at), groups(id, name, color, created_at, group_members(${STUDENT_REF}))`;
+const LESSON_SELECT = `id, space_id, group_id, date, time, notes, series_id, series_date, cancelled_at, date_overridden, time_overridden, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
 const SESSION_SELECT = `id, date, time, notes, session_payments(${STUDENT_REF}, amount, paid), session_songs(song_id, position), media_items(id, kind, caption, position)`;
 const PROJECT_SELECT = `id, name, type, color, main_song_id, created_at, project_participants(${STUDENT_REF}), sessions(${SESSION_SELECT})`;
 const MATERIAL_SELECT = "id, kind, title, artist, style, link, note, title_lang, artist_lang";
@@ -79,7 +83,14 @@ const byDateDesc = (a: { date: string; time: string }, b: { date: string; time: 
   a.date + a.time < b.date + b.time ? 1 : a.date + a.time > b.date + b.time ? -1 : 0;
 
 function mapStudent(r: StudentRow): Student {
-  return { id: r.id, name: r.name, phone: r.phone, ...(r.archived_at ? { archived: true } : {}) };
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    ...(r.parent_name ? { parentName: r.parent_name } : {}),
+    ...(r.parent_phone ? { parentPhone: r.parent_phone } : {}),
+    ...(r.archived_at ? { archived: true } : {}),
+  };
 }
 
 function mapGroup(r: GroupRow): Group {
@@ -109,6 +120,10 @@ function mapLesson(r: LessonRow): Lesson {
     materialIds: [...r.lesson_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
+    ...(r.series_id ? { seriesId: r.series_id, seriesDate: r.series_date! } : {}),
+    ...(r.cancelled_at ? { cancelled: true } : {}),
+    ...(r.date_overridden ? { dateOverridden: true } : {}),
+    ...(r.time_overridden ? { timeOverridden: true } : {}),
   };
 }
 
@@ -177,10 +192,10 @@ export async function getLessonsForSpace(spaceId: string): Promise<Lesson[]> {
   return (data as unknown as LessonRow[]).map(mapLesson).sort(byDateDesc);
 }
 
-/** Lesson counts per space (home page). */
+/** Lessons that took place, per space (home page): up to today, not cancelled — future envelopes don't count. */
 export async function getLessonCounts(): Promise<Record<string, number>> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("lessons").select("space_id");
+  const { data, error } = await supabase.from("lessons").select("space_id").lte("date", todayIso()).is("cancelled_at", null);
   if (error) fail("lesson counts", error);
   const counts: Record<string, number> = {};
   for (const r of data as { space_id: string }[]) counts[r.space_id] = (counts[r.space_id] ?? 0) + 1;

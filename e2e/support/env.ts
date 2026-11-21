@@ -7,6 +7,13 @@ export const TEST_PROJECT_REF = "gapprimwuxufzdjcnwwm";
 /** Marker for every row a test creates; cleanup deletes by it. */
 export const TAG = "בדיקה-אוטו";
 
+/**
+ * Weekly slots have no text to tag, so tests only create slots in the
+ * "test hour" (05:00–05:59), which no real lesson uses; cleanup removes
+ * exactly those slots and their lessons.
+ */
+export const TEST_HOUR = "05";
+
 export function assertTestEnvironment() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   if (!url.includes(TEST_PROJECT_REF) || (process.env.PROD_SUPABASE_URL && url === process.env.PROD_SUPABASE_URL)) {
@@ -34,6 +41,16 @@ export function db(): Promise<SupabaseClient> {
 /** Deletes everything tests created (tagged) and undoes an unfinished rename. */
 export async function cleanup(sb: SupabaseClient) {
   const out: Record<string, number | string> = {};
+  // Test slots (05:xx) and their occurrences first: lessons reference slots (RESTRICT).
+  const { data: tser } = await sb.from("lesson_series").select("id").gte("time", `${TEST_HOUR}:00`).lt("time", `${TEST_HOUR}:59:59`);
+  const serIds = (tser ?? []).map((s) => s.id);
+  if (serIds.length) {
+    const { data: serLessons } = await sb.from("lessons").select("id").in("series_id", serIds);
+    for (const l of serLessons ?? []) await deleteKeys(await listKeys(`lessons/${l.id}/`));
+    await sb.from("lessons").delete().in("series_id", serIds);
+    await sb.from("lesson_series").delete().in("id", serIds);
+  }
+  out.series = serIds.length;
   // Storage first: objects of tagged lessons/sessions and of tagged media rows.
   const [{ data: tl }, { data: ts }, { data: tm }] = await Promise.all([
     sb.from("lessons").select("id").like("notes", `%${TAG}%`),
