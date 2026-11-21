@@ -9,6 +9,7 @@ try {
 }
 
 const PORT = 3100;
+export const FAULT_PORT = 3101;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -32,11 +33,22 @@ export default defineConfig({
     { name: "phone-390", use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } } },
     { name: "desktop-1280", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } } },
   ],
-  webServer: {
-    // Production build (env baked from .env.local, i.e. the test project).
-    command: `npm run build && npx next start -p ${PORT}`,
-    url: `http://localhost:${PORT}/login`,
-    reuseExistingServer: true,
-    timeout: 240_000,
-  },
+  webServer: [
+    {
+      // Production build (env baked from .env.local, i.e. the test project).
+      command: `npm run build && npx next start -p ${PORT}`,
+      url: `http://localhost:${PORT}/login`,
+      reuseExistingServer: true,
+      timeout: 240_000,
+    },
+    {
+      // Same build, with storage deletes failing on purpose (test bucket only;
+      // see injectedFault in src/lib/storage/r2.ts). Used by e2e/media-events.spec.ts.
+      command: `npx next start -p ${FAULT_PORT}`,
+      url: `http://localhost:${FAULT_PORT}/login`,
+      reuseExistingServer: true,
+      timeout: 60_000,
+      env: { MEDIA_TEST_FAULT: "deletePrefix" },
+    },
+  ],
 });

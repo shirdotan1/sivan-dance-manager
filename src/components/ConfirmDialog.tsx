@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useTransition, type ReactNode } from "react";
+import { useId, useRef, useState, useTransition, type ReactNode } from "react";
 
 interface ConfirmDialogProps {
   /** Visible label of the button that opens the dialog. */
@@ -11,8 +11,8 @@ interface ConfirmDialogProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
-  /** Runs when the user confirms (a Server Action call). */
-  onConfirm: () => Promise<void> | void;
+  /** Runs when the user confirms (a Server Action call). Returning { error } keeps the dialog open and shows it. */
+  onConfirm: () => Promise<{ error: string } | void> | { error: string } | void;
 }
 
 /**
@@ -32,10 +32,14 @@ export function ConfirmDialog({
   const id = useId();
   const ref = useRef<HTMLDialogElement>(null);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
 
   return (
     <>
-      <button type="button" className={triggerClassName} onClick={() => ref.current?.showModal()}>
+      <button type="button" className={triggerClassName} onClick={() => {
+          setError("");
+          ref.current?.showModal();
+        }}>
         {triggerLabel}
         {triggerContext && <span className="visually-hidden"> {triggerContext}</span>}
       </button>
@@ -46,6 +50,9 @@ export function ConfirmDialog({
         <div id={`${id}-desc`} className="mb-6 text-muted">
           {description}
         </div>
+        <p role="alert" className="mb-4 text-sm font-medium text-danger empty:hidden">
+          {error}
+        </p>
         <div className="flex flex-wrap justify-end gap-3">
           <button type="button" className="btn btn-secondary" autoFocus onClick={() => ref.current?.close()}>
             ביטול
@@ -56,8 +63,10 @@ export function ConfirmDialog({
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                await onConfirm();
-                ref.current?.close();
+                setError("");
+                const result = await onConfirm();
+                if (result && "error" in result) setError(result.error);
+                else ref.current?.close();
               })
             }
           >

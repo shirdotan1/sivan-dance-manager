@@ -114,14 +114,14 @@ export function MediaManager({ owner, items, usageBytes }: { owner: MediaOwner; 
     }
   }
 
+  /** A failure is shown inside the confirm dialog (it stays open). */
   async function onDelete(m: MediaView, name: string) {
-    setError("");
     try {
       await deleteMediaItem(m.id);
       setStatus(`״${name}״ נמחק.`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "המחיקה נכשלה.");
+      return { error: err instanceof Error ? err.message : "המחיקה נכשלה." };
     }
   }
 

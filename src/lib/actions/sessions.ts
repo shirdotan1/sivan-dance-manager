@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { deleteEventFiles } from "@/lib/data/media";
 import { requireUser } from "@/lib/supabase/server";
 import { field, type ActionState } from "@/lib/actions/result";
 import { DATE_RE, TIME_RE, parseMaterials, replaceMaterials, resolveMaterials } from "@/lib/data/entries";
@@ -92,11 +93,18 @@ export async function setPaymentPaid(sessionId: string, studentId: string, paid:
   refresh();
 }
 
-/** Deletes a session with its payments, songs and media. */
-export async function deleteSession(projectId: string, sessionId: string): Promise<void> {
+/**
+ * Deletes a session with its payments, materials and media. Its stored
+ * files go first; if that fails, the session is not deleted.
+ */
+export async function deleteSession(projectId: string, sessionId: string): Promise<{ error: string } | void> {
   const { supabase } = await requireUser();
+  const { data: session } = await supabase.from("sessions").select("id").eq("id", sessionId).eq("project_id", projectId).maybeSingle();
+  if (!session) return { error: "המפגש לא נמצא." };
+  const files = await deleteEventFiles([{ kind: "session", id: sessionId }]);
+  if (!files.ok) return { error: files.error };
   const { error } = await supabase.from("sessions").delete().eq("id", sessionId).eq("project_id", projectId);
-  if (error) throw new Error("מחיקת המפגש נכשלה.");
+  if (error) return { error: "הקבצים נמחקו, אבל מחיקת המפגש נכשלה. כדאי לנסות שוב." };
   refresh();
   redirect(`/spaces/${SPACE}/projects/${projectId}`);
 }

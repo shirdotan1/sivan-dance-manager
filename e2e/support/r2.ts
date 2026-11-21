@@ -1,4 +1,4 @@
-import { DeleteObjectsCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 /** The TEST bucket only (checked by name); used to verify from outside the app. */
 export function testBucket() {
@@ -43,4 +43,10 @@ export async function deleteKeys(keys: string[]) {
     if (Objects.length) await client.send(new DeleteObjectsCommand({ Bucket, Delete: { Objects, Quiet: true } }));
   }
   return keys.length;
+}
+
+/** Puts an object directly (e.g. an orphan under an event prefix). */
+export async function putObject(key: string, body: Buffer | string = "x") {
+  const { client, Bucket } = testBucket();
+  await client.send(new PutObjectCommand({ Bucket, Key: key, Body: body }));
 }

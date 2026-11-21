@@ -74,7 +74,12 @@ const UPLOAD_URL_TTL = 15 * 60;
 /** One direct PUT (photos and small files). The browser must send the same Content-Type. */
 export async function signUpload(key: string, contentType: string) {
   const { client, Bucket } = s3();
-  return getSignedUrl(client, new PutObjectCommand({ Bucket, Key: key, ContentType: contentType }), { expiresIn: UPLOAD_URL_TTL });
+  // Sign Content-Type too (the SDK signs only `host` by default): the URL then
+  // refuses any other type, in addition to the server check on complete.
+  return getSignedUrl(client, new PutObjectCommand({ Bucket, Key: key, ContentType: contentType }), {
+    expiresIn: UPLOAD_URL_TTL,
+    signableHeaders: new Set(["content-type"]),
+  });
 }
 
 export async function startMultipart(key: string, contentType: string) {
@@ -134,8 +139,19 @@ export async function deleteObject(key: string) {
   await client.send(new DeleteObjectCommand({ Bucket, Key: key }));
 }
 
+/**
+ * E2E fault injection: lets the tests prove "storage failed → nothing is
+ * deleted". Honored ONLY when MEDIA_TEST_FAULT names the operation AND the
+ * bucket is a test bucket; production never sets it.
+ */
+function injectedFault(operation: "deletePrefix") {
+  const fault = process.env.MEDIA_TEST_FAULT;
+  if (fault === operation && /test/i.test(process.env.R2_BUCKET_NAME ?? "")) throw new Error(`Injected test fault: ${operation}`);
+}
+
 /** Deletes every object under a prefix (a whole lesson or session). Returns how many. */
 export async function deletePrefix(prefix: string) {
+  injectedFault("deletePrefix");
   const { client, Bucket } = s3();
   let deleted = 0;
   let ContinuationToken: string | undefined;

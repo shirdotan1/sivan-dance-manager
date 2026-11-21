@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { deleteEventFiles } from "@/lib/data/media";
 import { requireUser } from "@/lib/supabase/server";
 import { field, type ActionState } from "@/lib/actions/result";
 import {
@@ -82,11 +83,18 @@ export async function saveLesson(
   redirect(`/spaces/${spaceId}/lessons/${id}?saved=1`);
 }
 
-/** Deletes a lesson with its participants, songs and media. */
-export async function deleteLesson(spaceId: string, lessonId: string): Promise<void> {
+/**
+ * Deletes a lesson with its participants, materials and media. Its stored
+ * files go first; if that fails, the lesson is not deleted.
+ */
+export async function deleteLesson(spaceId: string, lessonId: string): Promise<{ error: string } | void> {
   const { supabase } = await requireUser();
+  const { data: lesson } = await supabase.from("lessons").select("id").eq("id", lessonId).eq("space_id", spaceId).maybeSingle();
+  if (!lesson) return { error: "השיעור לא נמצא." };
+  const files = await deleteEventFiles([{ kind: "lesson", id: lessonId }]);
+  if (!files.ok) return { error: files.error };
   const { error } = await supabase.from("lessons").delete().eq("id", lessonId).eq("space_id", spaceId);
-  if (error) throw new Error("מחיקת השיעור נכשלה.");
+  if (error) return { error: "הקבצים נמחקו, אבל מחיקת השיעור נכשלה. כדאי לנסות שוב." };
   refresh();
   redirect(`/spaces/${spaceId}`);
 }

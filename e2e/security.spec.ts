@@ -32,3 +32,40 @@ test("R2 credentials never appear in client bundles", async ({}, info) => {
     }
   }
 });
+
+test("signed URLs are bound and short-lived; the media API is never cached", async ({ request }, info) => {
+  const { TAG, db } = await import("./support/env");
+  const sb = await db();
+  const { data: lesson, error } = await sb
+    .from("lessons")
+    .insert({ space_id: "new-high-school", date: "2026-12-23", time: "09:00", notes: `${TAG} אבטחה ${info.project.name}` })
+    .select("id")
+    .single();
+  if (error) throw error;
+  const h = { "content-type": "application/json" };
+
+  // An upload URL signed for image/png can't be used to upload another type.
+  const start = await request.post("/api/media/uploads", { headers: h, data: { owner: { kind: "lesson", id: lesson.id }, contentType: "image/png", caption: `${TAG} חתימה` } });
+  expect(start.headers()["cache-control"]).toContain("no-store");
+  const { mediaId, uploadUrl } = await start.json();
+  const wrongType = await fetch(uploadUrl, { method: "PUT", body: "<html>", headers: { "content-type": "text/html" } });
+  expect(wrongType.status).toBe(403);
+  const upload = new URL(uploadUrl);
+  expect(Number(upload.searchParams.get("X-Amz-Expires"))).toBeLessThanOrEqual(15 * 60);
+
+  // The real upload, then the view URL: signed, ≤ 2 hours.
+  const { PNG } = await import("./support/media");
+  expect((await fetch(uploadUrl, { method: "PUT", body: PNG, headers: { "content-type": "image/png" } })).status).toBe(200);
+  const done = await request.post(`/api/media/uploads/${mediaId}/complete`, { headers: h, data: {} });
+  expect(done.headers()["cache-control"]).toContain("no-store");
+  const view = new URL((await done.json()).media.url);
+  expect(view.searchParams.get("X-Amz-Signature")).toBeTruthy();
+  expect(Number(view.searchParams.get("X-Amz-Expires"))).toBeLessThanOrEqual(2 * 60 * 60);
+
+  // Errors are not cached either.
+  const bad = await request.post("/api/media/uploads", { headers: h, data: {} });
+  expect(bad.status()).toBe(400);
+  expect(bad.headers()["cache-control"]).toContain("no-store");
+
+  expect((await request.delete(`/api/media/${mediaId}`)).status()).toBe(200);
+});

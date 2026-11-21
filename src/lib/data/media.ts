@@ -1,12 +1,15 @@
 import "server-only";
+import { after } from "next/server";
 import { getMediaAccess, isSignedIn } from "@/lib/auth/access";
 import {
   abortMultipart,
   completeMultipart,
   deleteObject,
+  deletePrefix,
   headObject,
   isMediaContentType,
   newObjectKey,
+  ownerPrefix,
   signParts,
   signUpload,
   signView,
@@ -26,6 +29,9 @@ import type { MediaKind } from "@/lib/types";
  *            lifecycle rule cancels its unfinished multipart after a day.
  *  delete:   object first (safe to repeat), then the row. If the row delete
  *            fails, the row shows "file missing" and can be deleted again.
+ *  event:    deleting a lesson/session/project first deletes every object
+ *            under its prefix (incl. pending ones); if that fails, the event
+ *            is NOT deleted (deleteEventFiles).
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -208,6 +214,9 @@ export async function deleteMedia(mediaId: string) {
 export async function getEventMedia(owner: MediaOwner) {
   const access = await getMediaAccess(owner, "view");
   if (!access.ok) return [];
+  // After the response: drop this event's uploads left pending > 24h (closed browser).
+  const supabase = access.supabase;
+  after(() => cleanupStalePending(supabase, owner).catch(() => {}));
   const { data } = await access.supabase
     .from("media_items")
     .select(ROW)
@@ -227,4 +236,40 @@ export async function getMediaUsage() {
   if (!signedIn) return 0;
   const { data } = await supabase.from("media_items").select("size_bytes").not("uploaded_at", "is", null);
   return (data ?? []).reduce((sum, r) => sum + Number(r.size_bytes ?? 0), 0);
+}
+
+// ---------- Event deletion & cleanup ----------
+
+/**
+ * Deletes every stored object of these lessons/sessions (by prefix, so
+ * pending and orphaned objects go too). Called BEFORE the database delete;
+ * a failure means the event must not be deleted.
+ */
+export async function deleteEventFiles(owners: MediaOwner[]): Promise<{ ok: true } | Fail> {
+  try {
+    for (const owner of owners) await deletePrefix(ownerPrefix(owner));
+    return { ok: true };
+  } catch {
+    return fail(502, "מחיקת הקבצים מהאחסון נכשלה, ולכן שום דבר לא נמחק. כדאי לנסות שוב.");
+  }
+}
+
+const STALE_PENDING_MS = 24 * 60 * 60 * 1000;
+
+/** Uploads left pending for more than 24h: object first (safe to repeat), then the row. */
+export async function cleanupStalePending(supabase: Awaited<ReturnType<typeof isSignedIn>>["supabase"], owner: MediaOwner) {
+  const { data } = await supabase
+    .from("media_items")
+    .select("id, storage_key")
+    .eq(ownerCol(owner), owner.id)
+    .not("storage_key", "is", null)
+    .is("uploaded_at", null)
+    .lt("created_at", new Date(Date.now() - STALE_PENDING_MS).toISOString());
+  let removed = 0;
+  for (const row of data ?? []) {
+    await deleteObject(row.storage_key!);
+    const { error } = await supabase.from("media_items").delete().eq("id", row.id).is("uploaded_at", null);
+    if (!error) removed++;
+  }
+  return removed;
 }
