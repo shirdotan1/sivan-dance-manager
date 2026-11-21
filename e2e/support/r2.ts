@@ -1,4 +1,12 @@
-import { DeleteObjectsCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  AbortMultipartUploadCommand,
+  DeleteObjectsCommand,
+  HeadObjectCommand,
+  ListMultipartUploadsCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 /** The TEST bucket only (checked by name); used to verify from outside the app. */
 export function testBucket() {
@@ -49,4 +57,18 @@ export async function deleteKeys(keys: string[]) {
 export async function putObject(key: string, body: Buffer | string = "x") {
   const { client, Bucket } = testBucket();
   await client.send(new PutObjectCommand({ Bucket, Key: key, Body: body }));
+}
+
+/** Multipart uploads still open under a prefix (should be none after a cancel). */
+export async function openUploads(prefix: string) {
+  const { client, Bucket } = testBucket();
+  const out = await client.send(new ListMultipartUploadsCommand({ Bucket, Prefix: prefix }));
+  return (out.Uploads ?? []).map((u) => ({ key: u.Key!, uploadId: u.UploadId! }));
+}
+
+export async function abortUploads(prefix: string) {
+  const { client, Bucket } = testBucket();
+  const open = await openUploads(prefix);
+  for (const u of open) await client.send(new AbortMultipartUploadCommand({ Bucket, Key: u.key, UploadId: u.uploadId }));
+  return open.length;
 }

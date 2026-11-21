@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { deleteKeys, listKeys } from "./r2";
+import { abortUploads, deleteKeys, listKeys } from "./r2";
 
 /** The Supabase TEST project. Tests create and delete rows; never production. */
 export const TEST_PROJECT_REF = "gapprimwuxufzdjcnwwm";
@@ -43,9 +43,17 @@ export async function cleanup(sb: SupabaseClient) {
   const { data: tp } = await sb.from("projects").select("id").like("name", `%${TAG}%`);
   const { data: tps } = tp?.length ? await sb.from("sessions").select("id").in("project_id", tp.map((p) => p.id)) : { data: [] };
   let objects = 0;
-  for (const s of tps ?? []) objects += await deleteKeys(await listKeys(`sessions/${s.id}/`));
-  for (const l of tl ?? []) objects += await deleteKeys(await listKeys(`lessons/${l.id}/`));
-  for (const s of ts ?? []) objects += await deleteKeys(await listKeys(`sessions/${s.id}/`));
+  let openUploads = 0;
+  const prefixes = [
+    ...(tps ?? []).map((s) => `sessions/${s.id}/`),
+    ...(tl ?? []).map((l) => `lessons/${l.id}/`),
+    ...(ts ?? []).map((s) => `sessions/${s.id}/`),
+  ];
+  for (const prefix of prefixes) {
+    openUploads += await abortUploads(prefix);
+    objects += await deleteKeys(await listKeys(prefix));
+  }
+  out.openUploads = openUploads;
   objects += await deleteKeys((tm ?? []).flatMap((m) => (m.storage_key ? [m.storage_key] : [])));
   out.objects = objects;
   out.media_items = (await sb.from("media_items").delete().like("caption", `%${TAG}%`).select("id")).data?.length ?? 0;

@@ -1,7 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 import { TAG, db } from "./support/env";
 import { expect, expectNoOverflow, go, test, vis } from "./support/fixtures";
-import { listKeys, objectExists } from "./support/r2";
+import { listKeys, objectExists, openUploads } from "./support/r2";
 
 /** Stage 4.4: videos — multipart upload with retries, cancel, inline player. */
 
@@ -169,6 +169,7 @@ test("cancel during an upload leaves no row and no object", async ({ page }, inf
   await expect(vis(page.getByRole("status").filter({ hasText: "ההעלאה בוטלה" }))).toBeVisible();
 
   await expect.poll(() => rowByCaption(caption)).toBeNull();
+  await expect.poll(async () => (await openUploads(`lessons/${lessonId}/`)).length).toBe(0); // the multipart was aborted
   const keyed = (await (await db()).from("media_items").select("storage_key").eq("lesson_id", lessonId)).data!.map((r) => r.storage_key);
   expect((await listKeys(`lessons/${lessonId}/`)).filter((k) => !keyed.includes(k))).toEqual([]); // no orphan object
 });
@@ -186,6 +187,8 @@ test("leaving the page during an upload asks for confirmation", async ({ page },
   await go(page, `/spaces/new-high-school/lessons/${lessonId}`);
   const { form } = await startUpload(page, { name: "leave.mp4", mimeType: "video/mp4", buffer: Buffer.alloc(1024 * 1024, 2) }, caption);
   await expect(form.getByRole("button", { name: "ביטול ההעלאה" })).toBeVisible();
+  // Only once the pending row exists does "the row is gone" prove the cancel cleaned up.
+  await expect.poll(async () => (await rowByCaption(caption))?.id ?? null).not.toBeNull();
 
   const dialog = page.waitForEvent("dialog");
   await page.close({ runBeforeUnload: true });
@@ -194,4 +197,5 @@ test("leaving the page during an upload asks for confirmation", async ({ page },
   await d.dismiss(); // stay on the page
   await form.getByRole("button", { name: "ביטול ההעלאה" }).click();
   await expect.poll(() => rowByCaption(caption)).toBeNull();
+  await expect.poll(async () => (await openUploads(`lessons/${lessonId}/`)).length).toBe(0);
 });

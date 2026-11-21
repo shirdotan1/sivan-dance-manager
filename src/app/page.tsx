@@ -36,6 +36,7 @@ export default function HomePage() {
             גיבוי
           </h2>
           <p className="text-sm text-muted">כל הנתונים — משתתפות, שיעורים, פרויקטים, תשלומים וחומרים — בקובץ JSON אחד.</p>
+          <p className="text-sm text-muted">קבצי התמונות והסרטונים עצמם אינם כלולים: הם שמורים באחסון נפרד, ומחיקה שלהם סופית.</p>
         </div>
         {/* A plain link: the route answers with a file download. */}
         <a href="/export" download className="btn btn-secondary">
