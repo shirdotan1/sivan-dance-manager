@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
+  /** The safe button (default "ביטול"); set it when the action itself is a "ביטול…" so the two never read alike. */
+  dismissLabel?: string;
   /** Runs when the user confirms (a Server Action call). Returning { error } keeps the dialog open and shows it. */
   onConfirm: () => Promise<{ error: string } | void> | { error: string } | void;
 }
@@ -27,6 +29,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  dismissLabel = "ביטול",
   onConfirm,
 }: ConfirmDialogProps) {
   const id = useId();
@@ -55,7 +58,7 @@ export function ConfirmDialog({
         </p>
         <div className="flex flex-wrap justify-end gap-3">
           <button type="button" className="btn btn-secondary" autoFocus onClick={() => ref.current?.close()}>
-            ביטול
+            {dismissLabel}
           </button>
           <button
             type="button"

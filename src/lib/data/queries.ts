@@ -263,6 +263,8 @@ export interface CalendarEvent {
   context: string;
   color: string;
   href: string;
+  /** A cancelled lesson occurrence (shown as cancelled, never "next up"). */
+  cancelled?: boolean;
 }
 
 export interface LegendItem {
@@ -276,7 +278,7 @@ export interface LegendItem {
 export async function getCalendarEvents(first: string, last: string): Promise<CalendarEvent[]> {
   const { supabase } = await requireUser();
   const [lessons, sessions, spaces] = await Promise.all([
-    supabase.from("lessons").select("id, space_id, date, time, groups(name, color)").gte("date", first).lte("date", last),
+    supabase.from("lessons").select("id, space_id, date, time, cancelled_at, groups(name, color)").gte("date", first).lte("date", last),
     supabase.from("sessions").select("id, date, time, projects(id, name, color)").gte("date", first).lte("date", last),
     supabase.from("spaces").select("id, name"),
   ]);
@@ -284,7 +286,10 @@ export async function getCalendarEvents(first: string, last: string): Promise<Ca
   if (sessions.error) fail("calendar sessions", sessions.error);
   const spaceName = new Map((spaces.data ?? []).map((s) => [s.id as string, s.name as string]));
 
-  type LessonRow = { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null };
+  type LessonRow = {
+    id: string; space_id: string; date: string; time: string; cancelled_at: string | null;
+    groups: { name: string; color: string } | null;
+  };
   type SessionRow = { id: string; date: string; time: string; projects: { id: string; name: string; color: string } | null };
 
   const events: CalendarEvent[] = [
@@ -297,6 +302,7 @@ export async function getCalendarEvents(first: string, last: string): Promise<Ca
       context: spaceName.get(l.space_id) ?? "",
       color: l.groups?.color ?? NEUTRAL_COLOR,
       href: `/spaces/${l.space_id}/lessons/${l.id}`,
+      ...(l.cancelled_at ? { cancelled: true } : {}),
     })),
     ...(sessions.data as unknown as SessionRow[])
       .filter((s) => s.projects)
@@ -525,5 +531,5 @@ export async function getNextEvent(): Promise<CalendarEvent | undefined> {
   const today = todayIso();
   const now = nowTimeIsrael();
   const events = await getCalendarEvents(today, addDays(today, 120));
-  return events.find((e) => e.date > today || e.time >= now);
+  return events.find((e) => !e.cancelled && (e.date > today || e.time >= now));
 }

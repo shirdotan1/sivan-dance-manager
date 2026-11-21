@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteLessonButton } from "@/components/DeleteLessonButton";
+import { CancelLessonButton, RestoreLessonButton } from "@/components/LessonStatusButtons";
 import { PrevNext } from "@/components/PrevNext";
 import { Suspense } from "react";
 import { EventMedia, EventMediaSkeleton } from "@/components/media/EventMedia";
@@ -54,6 +55,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
           <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm">משבצת שבועית</span>
         </p>
       )}
+      {lesson.cancelled && (
+        <div role="note" aria-label="השיעור בוטל" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-soft p-4">
+          <p className="font-semibold">השיעור הזה בוטל.</p>
+          <RestoreLessonButton spaceId={space.id} lessonId={lesson.id} />
+        </div>
+      )}
       {group && (
         <p className="mb-4 flex items-center gap-2">
           <span aria-hidden="true" className="inline-block size-3 rounded-full" style={{ background: group.color }} />
@@ -73,11 +80,13 @@ export default async function LessonPage({ params, searchParams }: Props) {
       />
 
       <ParticipantsView students={studentsByIds(space.students, lesson.participantIds)} />
-      <p className="-mt-6 mb-8 flex justify-end">
-        <Link href={`${base}/edit#participants`} className="btn btn-secondary btn-compact">
-          עריכת משתתפות
-        </Link>
-      </p>
+      {!lesson.cancelled && (
+        <p className="-mt-6 mb-8 flex justify-end">
+          <Link href={`${base}/edit#participants`} className="btn btn-secondary btn-compact">
+            עריכת משתתפות
+          </Link>
+        </p>
+      )}
       <MaterialsView materials={materialsByIds(bank, lesson.materialIds)} title="חומרים בשיעור" />
       <NotesView notes={lesson.notes} />
       <Suspense fallback={<EventMediaSkeleton />}>
@@ -85,7 +94,12 @@ export default async function LessonPage({ params, searchParams }: Props) {
       </Suspense>
 
       <div className="mb-6 flex justify-end">
-        <DeleteLessonButton spaceId={space.id} lessonId={lesson.id} label={formatDate(lesson.date)} />
+        {/* A slot occurrence is cancelled, never deleted (the slot would recreate it). */}
+        {!lesson.seriesId ? (
+          <DeleteLessonButton spaceId={space.id} lessonId={lesson.id} label={formatDate(lesson.date)} />
+        ) : !lesson.cancelled ? (
+          <CancelLessonButton spaceId={space.id} lessonId={lesson.id} label={formatDate(lesson.date)} />
+        ) : null}
       </div>
 
       <div className="action-bar">
