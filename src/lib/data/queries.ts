@@ -2,6 +2,7 @@ import "server-only";
 import { requireUser } from "@/lib/supabase/server";
 import { connection } from "next/server";
 import { addDays, nowTimeIsrael, shortTime, todayIso } from "@/lib/format";
+import { nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
   Project,
@@ -192,13 +193,16 @@ export async function getLessonsForSpace(spaceId: string): Promise<Lesson[]> {
   return (data as unknown as LessonRow[]).map(mapLesson).sort(byDateDesc);
 }
 
-/** Lessons that took place, per space (home page): up to today, not cancelled — future envelopes don't count. */
+/** Lessons that took place, per space (home page) — the shared rule in src/lib/lessonTime.ts. */
 export async function getLessonCounts(): Promise<Record<string, number>> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("lessons").select("space_id").lte("date", todayIso()).is("cancelled_at", null);
+  const now = nowInIsrael();
+  const { data, error } = await supabase.from("lessons").select("space_id, date, time, cancelled_at").lte("date", now.date);
   if (error) fail("lesson counts", error);
   const counts: Record<string, number> = {};
-  for (const r of data as { space_id: string }[]) counts[r.space_id] = (counts[r.space_id] ?? 0) + 1;
+  for (const r of data as { space_id: string; date: string; time: string; cancelled_at: string | null }[]) {
+    if (tookPlace({ date: r.date, time: r.time, cancelled: Boolean(r.cancelled_at) }, now)) counts[r.space_id] = (counts[r.space_id] ?? 0) + 1;
+  }
   return counts;
 }
 
@@ -419,14 +423,16 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
 
   const [groups, lessons, projects, payments] = await Promise.all([
     supabase.from("group_members").select("groups(id, name, color)").eq("student_id", studentId),
-    supabase.from("lesson_participants").select("lessons(id, space_id, date, time, groups(name, color))").eq("student_id", studentId),
+    supabase.from("lesson_participants").select("lessons(id, space_id, date, time, cancelled_at, groups(name, color))").eq("student_id", studentId),
     supabase.from("project_participants").select("projects(id, name, color, sessions(id, date, time))").eq("student_id", studentId),
     supabase.from("session_payments").select("session_id, amount, paid").eq("student_id", studentId),
   ]);
   for (const r of [groups, lessons, projects, payments]) if (r.error) fail("student card", r.error);
 
   type G = { groups: { id: string; name: string; color: string } | null };
-  type L = { lessons: { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null } | null };
+  type L = {
+    lessons: { id: string; space_id: string; date: string; time: string; cancelled_at: string | null; groups: { name: string; color: string } | null } | null;
+  };
   type P = { projects: { id: string; name: string; color: string; sessions: { id: string; date: string; time: string }[] } | null };
   const payBySession = new Map(
     (payments.data as { session_id: string; amount: number; paid: boolean }[]).map((p) => [p.session_id, { amount: p.amount, paid: p.paid }]),
@@ -454,6 +460,7 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
         ...(l.groups ? { groupName: l.groups.name } : {}),
         color: l.groups?.color ?? NEUTRAL_COLOR,
         href: `/spaces/${l.space_id}/lessons/${l.id}`,
+        ...(l.cancelled_at ? { cancelled: true } : {}),
       }))
       .sort(newestFirst),
     sessions: projectRows

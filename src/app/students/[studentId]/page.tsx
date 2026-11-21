@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { StudentEditForm } from "@/components/StudentEditForm";
 import { getStudentCard } from "@/lib/data/queries";
@@ -22,12 +23,17 @@ export default async function StudentPage({ params }: Props) {
   const paid = withPayment.filter((s) => s.payment!.paid);
   const owed = withPayment.filter((s) => !s.payment!.paid).reduce((sum, s) => sum + s.payment!.amount, 0);
   const paidSum = paid.reduce((sum, s) => sum + s.payment!.amount, 0);
-  // Most recent participation (lessons and sessions are each newest first).
+  // The shared rule (src/lib/lessonTime.ts): only what already took place
+  // counts — not future lessons, not cancelled ones (sessions can't be cancelled).
+  const now = nowInIsrael();
+  const heldLessons = lessons.filter((l) => tookPlace(l, now));
+  const heldSessions = sessions.filter((se) => tookPlace(se, now));
+  // Most recent participation that took place (each list is newest first).
   const latest = [
-    ...lessons.slice(0, 1).map((l) => ({ ...l, label: l.groupName ? `שיעור · ${l.groupName}` : "שיעור" })),
-    ...sessions.slice(0, 1).map((se) => ({ ...se, label: `מפגש · ${se.projectName}` })),
+    ...heldLessons.slice(0, 1).map((l) => ({ ...l, label: l.groupName ? `שיעור · ${l.groupName}` : "שיעור" })),
+    ...heldSessions.slice(0, 1).map((se) => ({ ...se, label: `מפגש · ${se.projectName}` })),
   ].sort((a, b) => (a.date + a.time < b.date + b.time ? 1 : -1))[0];
-  const totalActivity = lessons.length + sessions.length;
+  const totalActivity = heldLessons.length + heldSessions.length;
 
   return (
     <>

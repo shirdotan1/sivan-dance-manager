@@ -179,7 +179,10 @@ test("opening the calendar renews slots too", async ({ page }, info) => {
 
 test("home counts only lessons that took place, not future envelopes", async ({ page }) => {
   const sb = await db();
-  const { count } = await sb.from("lessons").select("*", { count: "exact", head: true }).eq("space_id", SPACE).lte("date", todayIL()).is("cancelled_at", null);
+  // The shared rule: the start (date + time, Israel) has passed and not cancelled.
+  const now = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+  const { data: rows } = await sb.from("lessons").select("date,time").eq("space_id", SPACE).lte("date", todayIL()).is("cancelled_at", null);
+  const count = rows!.filter((l) => l.date < todayIL() || l.time.slice(0, 5) <= now).length;
   await go(page, "/");
   // The space card itself (the "next up" card may also mention the space).
   const card = vis(page.locator(`main a[href="/spaces/${SPACE}"]`)).first();

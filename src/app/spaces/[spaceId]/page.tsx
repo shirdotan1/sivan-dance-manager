@@ -10,6 +10,7 @@ import { SeriesForm } from "@/components/SeriesManager";
 import { createGroup } from "@/lib/actions/groups";
 import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/data/queries";
 import { getSeriesForSpace, renewSeries, type Conflict } from "@/lib/data/series";
+import { hasStarted, nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { requireUser } from "@/lib/supabase/server";
 import { formatCurrency, formatDate, projectTypeLabel, todayIso, WEEKDAYS } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
@@ -47,10 +48,13 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
   const [spaceLessons, series] = await Promise.all([getLessonsForSpace(space.id), getSeriesForSpace(supabase, space.id)]);
   const pool = activeStudents(space.students);
   const today = todayIso();
-  // Newest first from the query: upcoming (today and later) nearest first, then past.
-  const upcoming = spaceLessons.filter((l) => l.date >= today).reverse();
-  const past = spaceLessons.filter((l) => l.date < today);
-  const held = past.filter((l) => !l.cancelled).length;
+  // The shared rule (src/lib/lessonTime.ts): a lesson has "happened" once its
+  // start (date + time, Israel) passed; it counts if it also isn't cancelled.
+  const now = nowInIsrael();
+  // Newest first from the query: upcoming (not started) nearest first, then past.
+  const upcoming = spaceLessons.filter((l) => !hasStarted(l, now)).reverse();
+  const past = spaceLessons.filter((l) => hasStarted(l, now));
+  const held = past.filter((l) => tookPlace(l, now)).length;
   const groupName = (id?: string) => space.groups.find((g) => g.id === id)?.name;
 
   return (
