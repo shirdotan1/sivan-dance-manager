@@ -166,10 +166,20 @@ create table public.media_items (
   kind       text not null check (kind in ('photo', 'video')),
   caption    text not null default '',
   position   int  not null default 0,
+  -- Real files (migrations/002_media_files.sql; included so a fresh install
+  -- matches a migrated database). NULL storage_key = placeholder;
+  -- storage_key with NULL uploaded_at = upload still pending.
+  storage_key  text,
+  content_type text,
+  size_bytes   bigint,
+  uploaded_at  timestamptz,
+  created_at   timestamptz not null default now(), -- migrations/003_media_created_at.sql
   check (num_nonnulls(lesson_id, session_id) = 1)
 );
 create index media_lesson_idx on public.media_items (lesson_id);
 create index media_session_idx on public.media_items (session_id);
+create unique index media_items_storage_key_idx on public.media_items (storage_key) where storage_key is not null;
+create index media_items_pending_idx on public.media_items (created_at) where storage_key is not null and uploaded_at is null;
 
 -- =====================================================================
 -- Row Level Security: only a signed-in user (Sivan — sign-ups are

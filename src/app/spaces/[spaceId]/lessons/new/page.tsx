@@ -30,7 +30,6 @@ export default async function NewLessonPage({ params, searchParams }: PageProps<
         participantIds: source.participantIds,
         materialIds: source.materialIds,
         notes: "",
-        media: [],
       }
     : {
         date: validDate ?? todayIso(),
@@ -38,7 +37,6 @@ export default async function NewLessonPage({ params, searchParams }: PageProps<
         participantIds: [],
         materialIds: [],
         notes: "",
-        media: [],
       };
 
   return (

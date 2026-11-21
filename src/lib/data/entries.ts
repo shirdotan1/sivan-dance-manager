@@ -27,7 +27,6 @@ function parseJsonArray(raw: FormDataEntryValue | null): unknown[] {
 
 export type ParsedParticipant = { id: string } | { name: string };
 export type ParsedMaterial = { id: string } | { kind: MaterialKind; title: string; link: string };
-export type ParsedMedia = { kind: "photo" | "video"; caption: string };
 
 export function parseParticipants(raw: FormDataEntryValue | null): ParsedParticipant[] {
   const out: ParsedParticipant[] = [];
@@ -51,17 +50,6 @@ export function parseMaterials(raw: FormDataEntryValue | null): ParsedMaterial[]
       const linkError = materialLinkError(kind, link);
       if (linkError) return { error: `${materialKindLabel[kind]} ״${title || link}״: ${linkError}` };
       if (title || link) out.push({ kind, title, link });
-    }
-  }
-  return out;
-}
-
-export function parseMedia(raw: FormDataEntryValue | null): ParsedMedia[] {
-  const out: ParsedMedia[] = [];
-  for (const v of parseJsonArray(raw)) {
-    if (v && typeof v === "object" && "kind" in v && (v.kind === "photo" || v.kind === "video")) {
-      const caption = "caption" in v && typeof v.caption === "string" ? v.caption.trim().slice(0, 200) : "";
-      out.push({ kind: v.kind, caption });
     }
   }
   return out;
@@ -124,12 +112,16 @@ export async function resolveMaterials(supabase: Supabase, entries: ParsedMateri
   return ids;
 }
 
-/** Replaces a lesson's or session's materials (ordered; stored in *_songs) and media placeholders. */
-export async function replaceMaterialsAndMedia(
+/**
+ * Replaces a lesson's or session's materials (ordered; stored in *_songs).
+ * Media is NOT touched here: it is managed only on the lesson/session page,
+ * so saving the edit form never deletes or re-creates media rows (their
+ * ids and storage keys must stay stable once real files exist).
+ */
+export async function replaceMaterials(
   supabase: Supabase,
   owner: { lesson_id: string } | { session_id: string },
   materialIds: string[],
-  media: ParsedMedia[],
 ): Promise<string | null> {
   const songTable = "lesson_id" in owner ? "lesson_songs" : "session_songs";
   const [ownerCol, ownerId] = Object.entries(owner)[0];
@@ -138,12 +130,6 @@ export async function replaceMaterialsAndMedia(
   if (materialIds.length) {
     const ins = await supabase.from(songTable).insert(materialIds.map((song_id, position) => ({ ...owner, song_id, position })));
     if (ins.error) return ins.error.message;
-  }
-  const delM = await supabase.from("media_items").delete().eq(ownerCol, ownerId);
-  if (delM.error) return delM.error.message;
-  if (media.length) {
-    const insM = await supabase.from("media_items").insert(media.map((m, position) => ({ ...owner, ...m, position })));
-    if (insM.error) return insM.error.message;
   }
   return null;
 }

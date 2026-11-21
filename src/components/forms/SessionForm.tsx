@@ -1,13 +1,12 @@
 "use client";
 
 import { useId } from "react";
-import { MediaField } from "@/components/forms/MediaField";
 import { PaymentsField } from "@/components/forms/PaymentsField";
 import { FieldError, errorProps, useFocusFirstError } from "@/components/forms/FieldError";
 import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
-import type { MediaItem, Payment, Material, Student } from "@/lib/types";
+import type { Payment, Material, Student } from "@/lib/types";
 
 export interface SessionDraft {
   date: string;
@@ -15,7 +14,6 @@ export interface SessionDraft {
   payments: Payment[];
   materialIds: string[];
   notes: string;
-  media: MediaItem[];
 }
 
 interface SessionFormProps {
@@ -27,7 +25,7 @@ interface SessionFormProps {
   submitLabel: string;
 }
 
-/** One form for new / edit session: date, time, payments, songs, notes, media. */
+/** One form for new / edit session: date, time, payments, materials, notes (media lives on the session page). */
 export function SessionForm({ action, pool, participantIds, bank, draft, submitLabel }: SessionFormProps) {
   const id = useId();
   const { state, onSubmit, pending } = useActionForm(action);
@@ -82,7 +80,7 @@ export function SessionForm({ action, pool, participantIds, bank, draft, submitL
         />
       </fieldset>
 
-      <MediaField initial={draft.media} />
+      <p className="mb-6 text-sm text-muted">תמונות וסרטונים מוסיפים בעמוד המפגש עצמו, אחרי השמירה.</p>
 
       <div className="action-bar">
         <p role="alert" className="text-sm font-medium text-danger empty:hidden">

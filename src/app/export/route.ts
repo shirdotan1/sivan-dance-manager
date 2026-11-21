@@ -41,6 +41,8 @@ export async function GET() {
       app: "sivan-dance-manager",
       format: 1,
       exportedAt: new Date().toISOString(),
+      // Media rows are included; the photo/video files themselves live in R2 and are not.
+      note: "קבצי התמונות והסרטונים עצמם אינם כלולים בקובץ הזה: הם שמורים באחסון נפרד (Cloudflare R2). כאן נשמרים רק פרטי הפריטים.",
       counts: Object.fromEntries(Object.entries(tables).map(([t, rows]) => [t, rows.length])),
       tables,
     },

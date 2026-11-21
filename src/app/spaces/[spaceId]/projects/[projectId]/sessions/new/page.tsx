@@ -33,7 +33,6 @@ export default async function NewSessionPage({
     })),
     materialIds: latest?.materialIds ?? (project.mainMaterialId ? [project.mainMaterialId] : []),
     notes: "",
-    media: [],
   };
 
   return (

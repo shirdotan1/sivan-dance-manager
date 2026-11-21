@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteLessonButton } from "@/components/DeleteLessonButton";
 import { PrevNext } from "@/components/PrevNext";
-import { MediaView, NotesView, ParticipantsView, MaterialsView } from "@/components/view/EventView";
+import { Suspense } from "react";
+import { EventMedia, EventMediaSkeleton } from "@/components/media/EventMedia";
+import { NotesView, ParticipantsView, MaterialsView } from "@/components/view/EventView";
 import { getLesson, getLessonsForSpace, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
 import { materialsByIds, studentsByIds } from "@/lib/lookup";
@@ -73,7 +75,9 @@ export default async function LessonPage({ params, searchParams }: Props) {
       </p>
       <MaterialsView materials={materialsByIds(bank, lesson.materialIds)} title="חומרים בשיעור" />
       <NotesView notes={lesson.notes} />
-      <MediaView media={lesson.media} />
+      <Suspense fallback={<EventMediaSkeleton />}>
+        <EventMedia owner={{ kind: "lesson", id: lesson.id }} />
+      </Suspense>
 
       <div className="mb-6 flex justify-end">
         <DeleteLessonButton spaceId={space.id} lessonId={lesson.id} label={formatDate(lesson.date)} />
