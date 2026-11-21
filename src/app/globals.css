@@ -570,6 +570,16 @@
     object-fit: cover;
   }
 
+  /* Inline video: the native player, full width of its cell, 16:9 box until metadata loads. */
+  .media-video {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 0.5rem;
+    background: #000;
+  }
+
   /* Photo dialog (native modal, light dismiss). */
   .media-lightbox {
     max-inline-size: min(64rem, calc(100vw - 1rem));

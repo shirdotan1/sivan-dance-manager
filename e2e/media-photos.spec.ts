@@ -35,8 +35,8 @@ test("upload a photo: it shows in the grid via a signed URL, opens in a dialog, 
   await go(page, lessonUrl());
   const section = vis(page.getByRole("region", { name: /מדיה/ }));
   await expect(section).toContainText("בשימוש באחסון:");
-  const form = section.getByRole("form", { name: "העלאת תמונות" });
-  await form.getByLabel("תמונות מהטלפון או מהמחשב").setInputFiles({ name: "rehearsal.png", mimeType: "image/png", buffer: PNG });
+  const form = section.getByRole("form", { name: "העלאת תמונות וסרטונים" });
+  await form.getByLabel("תמונות וסרטונים מהטלפון או מהמחשב").setInputFiles({ name: "rehearsal.png", mimeType: "image/png", buffer: PNG });
   await form.getByLabel(/^כיתוב/).fill(caption);
   await form.getByRole("button", { name: "העלאה" }).click();
   await expect(vis(page.getByRole("status").filter({ hasText: "התמונה הועלתה" }))).toBeVisible();
@@ -123,7 +123,7 @@ test("the session page has the same media section", async ({ page }) => {
   const { data: s } = await sb.from("sessions").select("id,project_id").limit(1).single();
   await go(page, `/spaces/private-lessons/projects/${s!.project_id}/sessions/${s!.id}`);
   const section = vis(page.getByRole("region", { name: /מדיה/ }));
-  await expect(section.getByRole("form", { name: "העלאת תמונות" })).toBeVisible();
+  await expect(section.getByRole("form", { name: "העלאת תמונות וסרטונים" })).toBeVisible();
   await expect(section).toContainText("בשימוש באחסון:");
   await expectNoOverflow(page);
 });
