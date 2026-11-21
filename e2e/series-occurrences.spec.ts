@@ -1,5 +1,5 @@
 import type { Page, TestInfo } from "@playwright/test";
-import { TAG, TEST_HOUR, db } from "./support/env";
+import { TAG, TEST_HOUR, db, recordSeries } from "./support/env";
 import { expect, go, submit, test, vis } from "./support/fixtures";
 
 /** Stage 5.3: one occurrence — cancel / restore, never deleted, moved by hand (protected fields). */
@@ -23,6 +23,7 @@ async function slotWithOccurrences(page: Page, info: TestInfo, minute: number, d
     .select("id")
     .single();
   if (error) throw error;
+  recordSeries(data.id);
   await go(page, `/spaces/${SPACE}`);
   const { data: occ } = await sb.from("lessons").select("id,date,time,series_date").eq("series_id", data.id).order("series_date");
   return { seriesId: data.id as string, occ: occ! };

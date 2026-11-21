@@ -1,5 +1,5 @@
 import type { Page, TestInfo } from "@playwright/test";
-import { TAG, TEST_HOUR, db } from "./support/env";
+import { TAG, TEST_HOUR, db, recordSeries } from "./support/env";
 import { expect, expectNoOverflow, go, test, vis } from "./support/fixtures";
 
 /** Stage 5.2: weekly slots — creation with preview, renewal, adoption, no duplicates. */
@@ -35,6 +35,7 @@ async function openSlotForm(page: Page) {
 async function newSeriesInDb(weekday: number, time: string) {
   const { data, error } = await (await db()).from("lesson_series").insert({ space_id: SPACE, weekday, time, starts_on: todayIL() }).select("id").single();
   if (error) throw error;
+  recordSeries(data.id);
   return data.id as string;
 }
 
@@ -63,6 +64,7 @@ test("creating a slot: preview first, then 8 weeks of envelopes, marked in the l
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText(`נוצרו ${dates.length} שיעורים`);
 
   const { data: series } = await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).single();
+  recordSeries(series!.id);
   const occ = await occurrences(series!.id);
   expect(occ.map((o) => o.series_date)).toEqual(dates);
   for (const o of occ) {
@@ -98,6 +100,7 @@ test("an existing one-off lesson on a slot date is adopted, not duplicated", asy
   await expect(preview).toContainText(`ייווצרו ${expectedDates(weekday).length - 1} שיעורים`);
   await form.getByRole("button", { name: "יצירת המשבצת" }).click();
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText("1 שיעורים קיימים צורפו");
+  for (const r of (await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data!) recordSeries(r.id);
 
   const { data: sameDay } = await sb.from("lessons").select("id,series_id,series_date").eq("space_id", SPACE).eq("date", date).eq("time", time);
   expect(sameDay).toHaveLength(1);
