@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { deleteKeys, listKeys } from "./r2";
 
 /** The Supabase TEST project. Tests create and delete rows; never production. */
 export const TEST_PROJECT_REF = "gapprimwuxufzdjcnwwm";
@@ -33,6 +34,18 @@ export function db(): Promise<SupabaseClient> {
 /** Deletes everything tests created (tagged) and undoes an unfinished rename. */
 export async function cleanup(sb: SupabaseClient) {
   const out: Record<string, number | string> = {};
+  // Storage first: objects of tagged lessons/sessions and of tagged media rows.
+  const [{ data: tl }, { data: ts }, { data: tm }] = await Promise.all([
+    sb.from("lessons").select("id").like("notes", `%${TAG}%`),
+    sb.from("sessions").select("id").like("notes", `%${TAG}%`),
+    sb.from("media_items").select("id,storage_key").like("caption", `%${TAG}%`),
+  ]);
+  let objects = 0;
+  for (const l of tl ?? []) objects += await deleteKeys(await listKeys(`lessons/${l.id}/`));
+  for (const s of ts ?? []) objects += await deleteKeys(await listKeys(`sessions/${s.id}/`));
+  objects += await deleteKeys((tm ?? []).flatMap((m) => (m.storage_key ? [m.storage_key] : [])));
+  out.objects = objects;
+  out.media_items = (await sb.from("media_items").delete().like("caption", `%${TAG}%`).select("id")).data?.length ?? 0;
   const del = async (table: string, col: string) => {
     const r = await sb.from(table).delete().like(col, `%${TAG}%`).select("id");
     out[table] = r.error ? r.error.message : (r.data?.length ?? 0);
@@ -47,6 +60,10 @@ export async function cleanup(sb: SupabaseClient) {
   }
   out.restoredNames = renamed?.length ?? 0;
   await del("students", "name");
+  // Orphans: objects in the test bucket with no media row (should be 0).
+  const { data: keyed } = await sb.from("media_items").select("storage_key").not("storage_key", "is", null);
+  const known = new Set((keyed ?? []).map((m) => m.storage_key));
+  out.orphanObjects = (await listKeys()).filter((k) => !known.has(k)).length;
   return out;
 }
 
