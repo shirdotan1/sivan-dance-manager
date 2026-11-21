@@ -1,5 +1,5 @@
 import type { Page, TestInfo } from "@playwright/test";
-import { TAG, TEST_HOUR, db, recordSeries } from "./support/env";
+import { TAG, db, recordSeries, testSlotTime } from "./support/env";
 import { expect, go, submit, test, vis } from "./support/fixtures";
 
 /** Stage 5.3: one occurrence — cancel / restore, never deleted, moved by hand (protected fields). */
@@ -12,7 +12,7 @@ const addDays = (iso: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 const weekdayOf = (iso: string) => new Date(`${iso}T12:00:00Z`).getUTCDay();
-const slotTime = (info: TestInfo, minute: number) => `${TEST_HOUR}:${String(minute + (info.project.name === "desktop-1280" ? 30 : 0)).padStart(2, "0")}`;
+const slotTime = (info: TestInfo, minute: number) => testSlotTime(info.project.name, minute);
 
 /** A slot (test hour) with its occurrences created by visiting the space page. */
 async function slotWithOccurrences(page: Page, info: TestInfo, minute: number, daysAhead = 2) {

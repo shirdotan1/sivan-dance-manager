@@ -147,7 +147,12 @@ export async function getSeriesForSpace(supabase: Supabase, spaceId: string): Pr
   return (data as SeriesRow[]).map(mapSeries);
 }
 
-/** What creating this slot would do: envelopes to create and existing lessons to adopt. */
+/**
+ * What creating this slot would do: envelopes to create and existing lessons
+ * to adopt. Adoption only links (series_id, series_date) — it never changes
+ * a lesson's content, group included; each adopted lesson's group is
+ * returned so the preview can show a mismatch with the slot's group.
+ */
 export async function previewNewSeries(
   supabase: Supabase,
   input: { spaceId: string; weekday: number; time: string; startsOn: string },
@@ -158,7 +163,7 @@ export async function previewNewSeries(
   return {
     dates,
     until: to,
-    adopt: adopt.map((l) => ({ id: l.id as string, date: l.date as string })),
+    adopt: adopt.map((l) => ({ id: l.id as string, date: l.date as string, groupId: (l.group_id as string | null) ?? null })),
     create: dates.length - adopt.length,
   };
 }

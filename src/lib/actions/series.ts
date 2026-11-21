@@ -17,7 +17,10 @@ export interface SeriesPreview {
   startsOn: string;
   until: string;
   create: number;
-  adopt: { id: string; date: string }[];
+  /** groupId: the lesson's own group (kept as is — adoption only links). */
+  adopt: { id: string; date: string; groupId: string | null }[];
+  /** The slot's group, to show a mismatch with adopted lessons. */
+  groupId: string | null;
 }
 export type SeriesFormState = ActionState & { preview?: SeriesPreview };
 
@@ -49,7 +52,7 @@ export async function createSeries(spaceId: string, prev: SeriesFormState, formD
   const t = shortTime(time);
   const key = [weekday, t, startsOn, groupId ?? ""].join("|");
   const preview = await previewNewSeries(supabase, { spaceId, weekday, time: t, startsOn });
-  const result: SeriesPreview = { key, weekday, time: t, startsOn, until: preview.until, create: preview.create, adopt: preview.adopt };
+  const result: SeriesPreview = { key, weekday, time: t, startsOn, until: preview.until, create: preview.create, adopt: preview.adopt, groupId };
 
   if (field(formData, "intent") !== "create") return { preview: result, done: prev.done };
   if (prev.preview?.key !== key) {

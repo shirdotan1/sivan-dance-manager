@@ -11,10 +11,16 @@ export const TAG = "בדיקה-אוטו";
 /**
  * Weekly slots have no text to tag. Every slot a test creates is recorded
  * (recordSeries) the moment it exists; cleanup deletes only recorded ids.
- * Tests also keep slots in the "test hour" (05:00–05:59) — an extra filter
- * on top of the ids, never the selection itself.
+ * Tests also keep slots in the test hours (04:00–05:59: 04 at the phone
+ * width, 05 at the desktop width) — an extra filter on top of the ids,
+ * never the selection itself. Times typed into a form must be whole
+ * 5 minutes (the time fields use step=300).
  */
 export const TEST_HOUR = "05";
+export const TEST_WINDOW = { from: "04:00", to: "05:59:59" } as const;
+/** A test slot time: 04:mm at the phone width, 05:mm at the desktop width. */
+export const testSlotTime = (projectName: string, minute: number) =>
+  `${projectName === "desktop-1280" ? "05" : "04"}:${String(minute).padStart(2, "0")}`;
 const REGISTRY = "e2e/.state/created-series.json";
 
 const readRegistry = (): string[] => {
@@ -72,7 +78,7 @@ export async function cleanup(sb: SupabaseClient) {
   const recorded = readRegistry();
   if (recorded.length) {
     const found = must(
-      await sb.from("lesson_series").select("id").in("id", recorded).gte("time", `${TEST_HOUR}:00`).lt("time", `${TEST_HOUR}:59:59`),
+      await sb.from("lesson_series").select("id").in("id", recorded).gte("time", TEST_WINDOW.from).lte("time", TEST_WINDOW.to),
       "find recorded series",
     ).map((r: { id: string }) => r.id);
     if (found.length) {

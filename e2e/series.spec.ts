@@ -1,5 +1,5 @@
 import type { Page, TestInfo } from "@playwright/test";
-import { TAG, TEST_HOUR, db, recordSeries } from "./support/env";
+import { TAG, db, recordSeries, testSlotTime } from "./support/env";
 import { expect, expectNoOverflow, go, test, vis } from "./support/fixtures";
 
 /** Stage 5.2: weekly slots — creation with preview, renewal, adoption, no duplicates. */
@@ -24,7 +24,7 @@ function expectedDates(weekday: number, startsOn = todayIL()) {
   return out;
 }
 /** A distinct test-hour time per test and width, so runs never share a slot. */
-const slotTime = (info: TestInfo, minute: number) => `${TEST_HOUR}:${String(minute + (info.project.name === "desktop-1280" ? 30 : 0)).padStart(2, "0")}`;
+const slotTime = (info: TestInfo, minute: number) => testSlotTime(info.project.name, minute);
 
 async function openSlotForm(page: Page) {
   await go(page, `/spaces/${SPACE}`);
@@ -98,6 +98,7 @@ test("an existing one-off lesson on a slot date is adopted, not duplicated", asy
   const preview = form.getByRole("region", { name: "תצוגה מקדימה" });
   await expect(preview).toContainText("שיעור קיים אחד יצורף למשבצת");
   await expect(preview).toContainText(`ייווצרו ${expectedDates(weekday).length - 1} שיעורים`);
+  await expect(preview).not.toContainText("הקבוצה של השיעור נשארת"); // same (no) group: no mismatch note
   await form.getByRole("button", { name: "יצירת המשבצת" }).click();
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText("1 שיעורים קיימים צורפו");
   for (const r of (await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data!) recordSeries(r.id);
@@ -117,10 +118,10 @@ test("creating after the details changed since the preview is refused (the previ
   await form.getByRole("button", { name: "בדיקה" }).click();
   await expect(form.getByRole("region", { name: "תצוגה מקדימה" })).toBeVisible();
   // Change the time after the preview: the preview disappears; a forged create is refused server-side.
-  await form.getByLabel(/^שעה/).fill(slotTime(info, 26));
+  await form.getByLabel(/^שעה/).fill(slotTime(info, 30));
   await expect(form.getByRole("region", { name: "תצוגה מקדימה" })).toHaveCount(0);
   await expect(form.getByRole("button", { name: "יצירת המשבצת" })).toHaveCount(0);
-  expect((await sb.from("lesson_series").select("id").eq("time", slotTime(info, 26))).data).toEqual([]);
+  expect((await sb.from("lesson_series").select("id").eq("time", slotTime(info, 30))).data).toEqual([]);
 });
 
 test("renewal twice at the same moment creates no duplicates", async ({ page, context }, info) => {
@@ -169,3 +170,41 @@ test("home counts only lessons that took place, not future envelopes", async ({ 
   const card = vis(page.locator(`main a[href="/spaces/${SPACE}"]`)).first();
   await expect(card).toContainText(`${count} שיעורים`);
 });
+
+/** Adoption only links: a lesson's own group is never changed, and a mismatch is shown first. */
+for (const dir of [
+  { name: "lesson in a group, slot without", lessonGroup: true, slotGroup: false, minute: 35 },
+  { name: "lesson without a group, slot in one", lessonGroup: false, slotGroup: true, minute: 40 },
+] as const) {
+  test(`adoption never changes the lesson's group (${dir.name}); the preview shows the mismatch`, async ({ page }, info) => {
+    const sb = await db();
+    const { data: groups } = await sb.from("groups").select("id,name").eq("space_id", SPACE).order("created_at").limit(2);
+    const [a, b] = groups!;
+    const time = slotTime(info, dir.minute);
+    const date = addDays(todayIL(), 11);
+    const { data: lesson, error } = await sb
+      .from("lessons")
+      .insert({ space_id: SPACE, date, time, group_id: dir.lessonGroup ? a.id : null, notes: `${TAG} קבוצה ${info.project.name}` })
+      .select("id")
+      .single();
+    if (error) throw error;
+
+    const form = await openSlotForm(page);
+    await form.getByLabel(/^יום בשבוע/).selectOption(String(weekdayOf(date)));
+    await form.getByLabel(/^שעה/).fill(time);
+    if (dir.slotGroup) await form.getByLabel(/^קבוצה/).selectOption(b.id);
+    await form.getByRole("button", { name: "בדיקה" }).click();
+    const preview = form.getByRole("region", { name: "תצוגה מקדימה" });
+    await expect(preview).toContainText(
+      `הקבוצה היא ״${dir.lessonGroup ? a.name : "בלי קבוצה"}״ ובמשבצת ״${dir.slotGroup ? b.name : "בלי קבוצה"}״ — הקבוצה של השיעור נשארת כפי שהיא`,
+    );
+    await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+    await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText("1 שיעורים קיימים צורפו");
+    for (const r of (await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data!) recordSeries(r.id);
+
+    const { data: after } = await sb.from("lessons").select("group_id,series_id,notes,date,time").eq("id", lesson.id).single();
+    expect(after!.series_id).toBeTruthy(); // linked…
+    expect(after!.group_id).toBe(dir.lessonGroup ? a.id : null); // …and its group untouched
+    expect(after!.date).toBe(date);
+  });
+}

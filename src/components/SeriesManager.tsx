@@ -23,6 +23,8 @@ export function SeriesForm({ spaceId, groups, today }: { spaceId: string; groups
   ]);
   const err = state.fieldErrors ?? {};
   const preview = !stale ? state.preview : undefined;
+  const groupName = (gid: string | null) => (gid ? (groups.find((g) => g.id === gid)?.name ?? "קבוצה") : "בלי קבוצה");
+  const mismatches = preview?.adopt.filter((a) => a.groupId !== preview.groupId) ?? [];
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -107,6 +109,12 @@ export function SeriesForm({ spaceId, groups, today }: { spaceId: string; groups
                   שייווצר כפל: {preview.adopt.map((a) => formatDate(a.date)).join(", ")}.
                 </li>
               )}
+              {mismatches.map((a) => (
+                <li key={a.id}>
+                  בשיעור של {formatDate(a.date)} הקבוצה היא ״{groupName(a.groupId)}״ ובמשבצת ״{groupName(preview.groupId)}״ — הקבוצה של
+                  השיעור נשארת כפי שהיא; הצירוף רק מקשר.
+                </li>
+              ))}
             </ul>
           </div>
         )}
