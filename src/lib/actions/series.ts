@@ -58,7 +58,13 @@ export async function createSeries(spaceId: string, prev: SeriesFormState, formD
 
   const { error } = await supabase.from("lesson_series").insert({ space_id: spaceId, group_id: groupId, weekday, time: t, starts_on: startsOn });
   if (error) return { error: "יצירת המשבצת נכשלה. כדאי לנסות שוב." };
-  const r = await renewSeries(supabase, [spaceId]);
+  let r: { created: number; adopted: number };
+  try {
+    r = await renewSeries(supabase, [spaceId]);
+  } catch (e) {
+    refresh();
+    return { error: `המשבצת נשמרה, אבל יצירת השיעורים שלה נכשלה (${e instanceof Error ? e.message : "שגיאה"}). כדאי לפתוח שוב את עמוד המרחב.` };
+  }
   refresh();
   const parts = [`נוצרו ${r.created} שיעורים`, r.adopted ? `${r.adopted} שיעורים קיימים צורפו למשבצת` : ""].filter(Boolean);
   return {
