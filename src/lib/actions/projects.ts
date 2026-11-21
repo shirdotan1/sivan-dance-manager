@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { deleteEventFiles } from "@/lib/data/media";
 import { requireUser } from "@/lib/supabase/server";
 import { field, fields, type ActionState } from "@/lib/actions/result";
 import { nextColor } from "@/lib/data/colors";
@@ -44,10 +45,15 @@ export async function saveProject(projectId: string | null, _prev: ActionState, 
 }
 
 /** Deletes a project with all its sessions and their payments. */
-export async function deleteProject(projectId: string): Promise<void> {
+export async function deleteProject(projectId: string): Promise<{ error: string } | void> {
   const { supabase } = await requireUser();
+  // Its sessions are deleted by cascade: their stored files must go first.
+  const { data: sessions, error: listError } = await supabase.from("sessions").select("id").eq("project_id", projectId);
+  if (listError) return { error: "מחיקת הפרויקט נכשלה. כדאי לנסות שוב." };
+  const files = await deleteEventFiles((sessions ?? []).map((s) => ({ kind: "session" as const, id: s.id as string })));
+  if (!files.ok) return { error: files.error };
   const { error } = await supabase.from("projects").delete().eq("id", projectId);
-  if (error) throw new Error("מחיקת הפרויקט נכשלה.");
+  if (error) return { error: "הקבצים נמחקו, אבל מחיקת הפרויקט נכשלה. כדאי לנסות שוב." };
   refresh();
   redirect(`/spaces/${SPACE}`);
 }

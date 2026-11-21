@@ -33,6 +33,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname === "/login";
 
+  // The media API answers 401 JSON (not a login page); handlers re-check too.
+  if (!signedIn && pathname.startsWith("/api/")) {
+    return Response.json({ error: "יש להתחבר מחדש." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  }
   if (!signedIn && !isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

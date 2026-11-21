@@ -1,13 +1,12 @@
 "use client";
 
 import { useId } from "react";
-import { MediaField } from "@/components/forms/MediaField";
 import { ParticipantsField } from "@/components/forms/ParticipantsField";
 import { FieldError, errorProps, useFocusFirstError } from "@/components/forms/FieldError";
 import { MaterialsField } from "@/components/forms/MaterialsField";
 import type { ActionState } from "@/lib/actions/result";
 import { useActionForm } from "@/lib/actions/useActionForm";
-import type { Lesson, Material, StudioSpace } from "@/lib/types";
+import type { Material, StudioSpace } from "@/lib/types";
 
 export interface LessonDraft {
   date: string;
@@ -16,7 +15,6 @@ export interface LessonDraft {
   participantIds: string[];
   materialIds: string[];
   notes: string;
-  media: Lesson["media"];
 }
 
 interface LessonFormProps {
@@ -106,7 +104,7 @@ export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFo
         />
       </fieldset>
 
-      <MediaField initial={draft.media} />
+      <p className="mb-6 text-sm text-muted">תמונות וסרטונים מוסיפים בעמוד השיעור עצמו, אחרי השמירה.</p>
 
       {/* Save stays within thumb reach on phones. */}
       <div className="action-bar">

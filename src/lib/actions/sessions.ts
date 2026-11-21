@@ -2,9 +2,10 @@
 
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { deleteEventFiles } from "@/lib/data/media";
 import { requireUser } from "@/lib/supabase/server";
 import { field, type ActionState } from "@/lib/actions/result";
-import { DATE_RE, TIME_RE, parseMedia, parseMaterials, replaceMaterialsAndMedia, resolveMaterials } from "@/lib/data/entries";
+import { DATE_RE, TIME_RE, parseMaterials, replaceMaterials, resolveMaterials } from "@/lib/data/entries";
 
 const SPACE = "private-lessons";
 
@@ -15,7 +16,7 @@ function invalid(fieldErrors: Record<string, string>): ActionState {
 
 /**
  * Creates (sessionId = null) or updates a project session: date, time,
- * one payment per project participant (amount + paid), songs, notes, media.
+ * one payment per project participant (amount + paid), materials, notes. Media is managed on the session page.
  */
 export async function saveSession(
   projectId: string,
@@ -74,8 +75,8 @@ export async function saveSession(
     const ins = await supabase.from("session_payments").insert(payments.map((p) => ({ ...p, session_id: id })));
     if (ins.error) return { error: "שמירת התשלומים נכשלה." };
   }
-  const err = await replaceMaterialsAndMedia(supabase, { session_id: id! }, materialIds, parseMedia(formData.get("media")));
-  if (err) return { error: "שמירת החומרים או המדיה נכשלה." };
+  const err = await replaceMaterials(supabase, { session_id: id! }, materialIds);
+  if (err) return { error: "שמירת החומרים נכשלה." };
 
   redirect(`/spaces/${SPACE}/projects/${projectId}/sessions/${id}?saved=1`);
 }
@@ -92,11 +93,18 @@ export async function setPaymentPaid(sessionId: string, studentId: string, paid:
   refresh();
 }
 
-/** Deletes a session with its payments, songs and media. */
-export async function deleteSession(projectId: string, sessionId: string): Promise<void> {
+/**
+ * Deletes a session with its payments, materials and media. Its stored
+ * files go first; if that fails, the session is not deleted.
+ */
+export async function deleteSession(projectId: string, sessionId: string): Promise<{ error: string } | void> {
   const { supabase } = await requireUser();
+  const { data: session } = await supabase.from("sessions").select("id").eq("id", sessionId).eq("project_id", projectId).maybeSingle();
+  if (!session) return { error: "המפגש לא נמצא." };
+  const files = await deleteEventFiles([{ kind: "session", id: sessionId }]);
+  if (!files.ok) return { error: files.error };
   const { error } = await supabase.from("sessions").delete().eq("id", sessionId).eq("project_id", projectId);
-  if (error) throw new Error("מחיקת המפגש נכשלה.");
+  if (error) return { error: "הקבצים נמחקו, אבל מחיקת המפגש נכשלה. כדאי לנסות שוב." };
   refresh();
   redirect(`/spaces/${SPACE}/projects/${projectId}`);
 }

@@ -115,6 +115,18 @@ const currencyFormatter = new Intl.NumberFormat("he-IL", {
   maximumFractionDigits: 0,
 });
 
+/** File sizes for the media usage line, e.g. "820 KB", "3.2 GB" (decimal units, like R2's pricing). */
+export function formatBytes(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: v < 10 && i > 0 ? 1 : 0 }).format(v)} ${units[i]}`;
+}
+
 export function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
 }
