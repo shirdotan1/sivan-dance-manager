@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { field, type ActionState } from "@/lib/actions/result";
 import { DATE_RE, TIME_RE } from "@/lib/data/entries";
-import { previewNewSeries, renewSeries, type Conflict } from "@/lib/data/series";
+import { createSlotExactly, previewNewSeries, type Conflict } from "@/lib/data/series";
 import { formatDate, shortTime, WEEKDAYS } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 
@@ -68,26 +68,15 @@ export async function createSeries(spaceId: string, prev: SeriesFormState, formD
   };
 
   if (field(formData, "intent") !== "create") return { preview: result, done: prev.done };
-  // Recomputed now, never trusted from the browser: a conflict blocks creation.
-  if (result.conflicts.length) {
-    return { preview: result, done: prev.done, error: "יש התנגשויות בתאריכים של המשבצת, ולכן היא לא נוצרה. אפשר לבחור שעה או יום אחרים." };
-  }
+  // The preview the user confirmed must be for these exact details…
   if (prev.preview?.key !== key) {
     return { preview: result, done: prev.done, error: "הפרטים השתנו מאז הבדיקה. כדאי לעבור שוב על התצוגה המקדימה ולאשר." };
   }
-
-  const { data: created, error } = await supabase
-    .from("lesson_series")
-    .insert({ space_id: spaceId, group_id: groupId, weekday, time: t, starts_on: startsOn })
-    .select("id")
-    .single();
-  if (error || !created) return { error: "יצירת המשבצת נכשלה. כדאי לנסות שוב." };
-  let r: { created: number; adopted: number };
-  try {
-    r = await renewSeries(supabase, [spaceId], undefined, [created.id]);
-  } catch (e) {
-    refresh();
-    return { error: `המשבצת נשמרה, אבל יצירת השיעורים שלה נכשלה (${e instanceof Error ? e.message : "שגיאה"}). כדאי לפתוח שוב את עמוד המרחב.` };
+  // …and its content must still be what will happen (recomputed and applied exactly; see createSlotExactly).
+  const r = await createSlotExactly(supabase, { spaceId, weekday, time: t, startsOn, groupId }, prev.preview);
+  if (!r.ok) {
+    if (r.reason !== "failed") refresh();
+    return { preview: result, done: prev.done, error: r.message };
   }
   refresh();
   const parts = [`נוצרו ${r.created} שיעורים`, r.adopted ? `${r.adopted} שיעורים קיימים צורפו למשבצת` : ""].filter(Boolean);

@@ -254,3 +254,115 @@ export async function previewNewSeries(supabase: Supabase, input: { spaceId: str
   const plan = planSlot({ spaceId: input.spaceId as LessonSeries["spaceId"], weekday: input.weekday, time: input.time, startsOn: input.startsOn }, window, lessons, new Set());
   return { ...plan, until: window.to };
 }
+
+// ---------- Creating a slot exactly as previewed ----------
+
+export type PreviewContent = { create: string[]; adopt: { id: string; date: string }[]; conflicts: Conflict[] };
+
+/** Same content: the dates to create, the lessons (and dates) to adopt, and no conflicts. */
+export function samePlanContent(a: PreviewContent, b: PreviewContent) {
+  const key = (p: PreviewContent) =>
+    JSON.stringify({
+      create: [...p.create].sort(),
+      adopt: p.adopt.map((x) => `${x.id}@${x.date}`).sort(),
+      conflicts: p.conflicts.map((c) => `${c.date}:${c.kind}:${[...c.lessonIds].sort().join(",")}`).sort(),
+    });
+  return key(a) === key(b);
+}
+
+export type CreateSlotResult =
+  | { ok: true; seriesId: string; created: number; adopted: number }
+  | { ok: false; reason: "conflict" | "changed" | "failed"; message: string };
+
+/**
+ * Creates a slot only if its plan is still exactly the previewed one, and
+ * applies exactly that plan:
+ *   1. recompute the plan; any conflict, or any content difference from the
+ *      preview (dates to create, lessons to adopt), refuses;
+ *   2. insert the slot inactive (stops_on = starts_on), so concurrent
+ *      renewals ignore it;
+ *   3. adopt each planned lesson (guarded: still one-off, same date and
+ *      time; exactly one row each) and insert exactly the planned envelopes;
+ *   4. check after writing: no other lesson at the slot's dates and time;
+ *   5. activate (stops_on = NULL).
+ * Any deviation rolls everything back (adopted lessons unlinked, new
+ * envelopes and the slot deleted) and refuses. The unique index on
+ * (series_id, series_date) stays a backup, not the check.
+ */
+export async function createSlotExactly(
+  supabase: Supabase,
+  input: { spaceId: string; weekday: number; time: string; startsOn: string; groupId: string | null },
+  expected: PreviewContent,
+  hooks?: { beforeApply?: () => Promise<void> },
+): Promise<CreateSlotResult> {
+  const plan = await previewNewSeries(supabase, input);
+  if (plan.conflicts.length) return { ok: false, reason: "conflict", message: "יש התנגשויות בתאריכים של המשבצת, ולכן היא לא נוצרה." };
+  if (!samePlanContent(plan, expected)) {
+    return { ok: false, reason: "changed", message: "השיעורים בתאריכים של המשבצת השתנו מאז הבדיקה, ולכן היא לא נוצרה. כדאי לבדוק שוב." };
+  }
+
+  const { data: slot, error } = await supabase
+    .from("lesson_series")
+    .insert({ space_id: input.spaceId, group_id: input.groupId, weekday: input.weekday, time: input.time, starts_on: input.startsOn, stops_on: input.startsOn })
+    .select("id")
+    .single();
+  if (error || !slot) return { ok: false, reason: "failed", message: "יצירת המשבצת נכשלה. כדאי לנסות שוב." };
+  const seriesId = slot.id as string;
+
+  const rollback = async (message: string): Promise<CreateSlotResult> => {
+    const adoptIds = plan.adopt.map((a) => a.id);
+    const steps = [
+      adoptIds.length
+        ? supabase.from("lessons").update({ series_id: null, series_date: null }).eq("series_id", seriesId).in("id", adoptIds)
+        : null,
+      supabase.from("lessons").delete().eq("series_id", seriesId),
+      supabase.from("lesson_series").delete().eq("id", seriesId),
+    ];
+    for (const step of steps) {
+      if (!step) continue;
+      const { error: e } = await step;
+      if (e) return { ok: false, reason: "failed", message: `${message} גם הביטול נכשל (${e.message}) — כדאי לבדוק את המשבצות במרחב.` };
+    }
+    return { ok: false, reason: "changed", message };
+  };
+
+  try {
+    await hooks?.beforeApply?.();
+    for (const a of plan.adopt) {
+      const { data, error: e } = await supabase
+        .from("lessons")
+        .update({ series_id: seriesId, series_date: a.date })
+        .eq("id", a.id)
+        .is("series_id", null)
+        .eq("date", a.date)
+        .eq("time", input.time)
+        .select("id");
+      if (e) throw new Error(`adopting the lesson of ${a.date} failed: ${e.message}`);
+      if (data?.length !== 1) return await rollback("שיעור שהיה אמור להצטרף למשבצת השתנה בינתיים, ולכן המשבצת לא נוצרה. כדאי לבדוק שוב.");
+    }
+    if (plan.create.length) {
+      const rows = plan.create.map((date) => ({
+        space_id: input.spaceId,
+        group_id: input.groupId,
+        date,
+        time: input.time,
+        series_id: seriesId,
+        series_date: date,
+      }));
+      const { data, error: e } = await supabase.from("lessons").upsert(rows, { onConflict: "series_id,series_date", ignoreDuplicates: true }).select("id");
+      if (e) throw new Error(`creating the lessons failed: ${e.message}`);
+      if (data?.length !== rows.length) return await rollback("לא כל השיעורים של המשבצת נוצרו, ולכן היא לא נוצרה. כדאי לבדוק שוב.");
+    }
+    const window = horizon();
+    const after = await windowLessons(supabase, [input.spaceId], window.from, window.to);
+    const dates = new Set(plan.dates);
+    if (after.some((l) => dates.has(l.date) && l.time === input.time && l.seriesId !== seriesId)) {
+      return await rollback("נוסף בינתיים שיעור באותה שעה באחד התאריכים, ולכן המשבצת לא נוצרה. כדאי לבדוק שוב.");
+    }
+    const { error: e } = await supabase.from("lesson_series").update({ stops_on: null }).eq("id", seriesId);
+    if (e) throw new Error(`activating the slot failed: ${e.message}`);
+    return { ok: true, seriesId, created: plan.create.length, adopted: plan.adopt.length };
+  } catch (e) {
+    return await rollback(`יצירת המשבצת נכשלה (${e instanceof Error ? e.message : "שגיאה"}).`);
+  }
+}

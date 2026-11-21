@@ -77,7 +77,7 @@ test("creating a slot: preview first, then 8 weeks of envelopes, marked in the l
   await expect(preview).toContainText(`כל יום ${WEEKDAYS[weekday]} בשעה ${time}`);
   await expect(preview).toContainText(`ייווצרו ${dates.length} שיעורים`);
   // Nothing is saved by the preview.
-  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data).toEqual([]);
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).eq("weekday", weekday)).data).toEqual([]);
 
   const seriesId = await createAndRecord(page, time);
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText(`נוצרו ${dates.length} שיעורים`);
@@ -255,7 +255,7 @@ test("two one-off lessons at the same date and time: conflict, no silent pick, c
 
   await forgeCreate(page);
   await expect(form.getByRole("alert")).toContainText("יש התנגשויות");
-  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data).toEqual([]);
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).eq("weekday", weekdayOf(date))).data).toEqual([]);
   const { data: same } = await sb.from("lessons").select("series_id").eq("space_id", SPACE).eq("date", date).eq("time", time);
   expect(same!.every((l) => l.series_id === null)).toBe(true); // neither was picked
 });
@@ -289,4 +289,45 @@ test("renewal never creates a conflicting occurrence: the newer of two same-time
   await expect(vis(page.getByRole("region", { name: /משבצות שבועיות/ }))).toContainText("באותה שעה כבר יש שיעור של משבצת אחרת");
   await go(page, `/spaces/${SPACE}`);
   expect(await occurrences(newer)).toEqual([]);
+});
+
+/** The preview is compared by content (not only its input): any change since the check refuses. */
+test("content changed since the preview (same input): creation refused, nothing created, the new preview shows the change", async ({ page }, info) => {
+  const sb = await db();
+  const time = slotTime(info, 5);
+  const weekday = weekdayOf(addDays(todayIL(), 13));
+  const dates = expectedDates(weekday);
+  const form = await openSlotForm(page);
+  await form.getByLabel(/^יום בשבוע/).selectOption(String(weekday));
+  await form.getByLabel(/^שעה/).fill(time);
+  await form.getByRole("button", { name: "בדיקה" }).click();
+  const preview = form.getByRole("region", { name: "תצוגה מקדימה" });
+  await expect(preview).toContainText(`ייווצרו ${dates.length} שיעורים`);
+
+  // Same input, different content: a one-off lesson now sits on a slot date at that time.
+  const { error } = await sb.from("lessons").insert({ space_id: SPACE, date: dates[1], time, notes: `${TAG} אחרי-בדיקה ${info.project.name}` });
+  if (error) throw error;
+  await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+  await expect(form.getByRole("alert")).toContainText("השתנו מאז הבדיקה");
+  // (Filter by weekday too: other tests reuse this minute on other weekdays.)
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).eq("weekday", weekday)).data).toEqual([]);
+  await expect(preview).toContainText("שיעור קיים אחד יצורף למשבצת");
+  await expect(preview).toContainText(`ייווצרו ${dates.length - 1} שיעורים`);
+});
+
+test("an adoption candidate that moved after the preview: creation refused", async ({ page }, info) => {
+  const sb = await db();
+  const time = slotTime(info, 10);
+  const date = addDays(todayIL(), 15);
+  const { data: l } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} זז ${info.project.name}` }).select("id").single();
+  const form = await openSlotForm(page);
+  await form.getByLabel(/^יום בשבוע/).selectOption(String(weekdayOf(date)));
+  await form.getByLabel(/^שעה/).fill(time);
+  await form.getByRole("button", { name: "בדיקה" }).click();
+  await expect(form.getByRole("region", { name: "תצוגה מקדימה" })).toContainText("שיעור קיים אחד יצורף");
+  await sb.from("lessons").update({ time: slotTime(info, 15) }).eq("id", l!.id);
+  await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+  await expect(form.getByRole("alert")).toContainText("השתנו מאז הבדיקה");
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).eq("weekday", weekdayOf(date))).data).toEqual([]);
+  expect((await sb.from("lessons").select("series_id").eq("id", l!.id).single()).data!.series_id).toBeNull();
 });
