@@ -5,7 +5,9 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { DeleteSessionButton } from "@/components/DeleteSessionButton";
 import { PrevNext } from "@/components/PrevNext";
 import { PaymentsQuick } from "@/components/PaymentsQuick";
-import { MediaView, NotesView, MaterialsView } from "@/components/view/EventView";
+import { Suspense } from "react";
+import { EventMedia, EventMediaSkeleton } from "@/components/media/EventMedia";
+import { NotesView, MaterialsView } from "@/components/view/EventView";
 import { getProject, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate, projectTypeLabel } from "@/lib/format";
 import { materialsByIds, studentsByIds } from "@/lib/lookup";
@@ -80,7 +82,9 @@ export default async function SessionPage({ params, searchParams }: Props) {
       <PaymentsQuick sessionId={session.id} payments={session.payments} students={space.students} />
       <MaterialsView materials={materialsByIds(bank, session.materialIds)} title="חומרים במפגש" />
       <NotesView notes={session.notes} />
-      <MediaView media={session.media} />
+      <Suspense fallback={<EventMediaSkeleton />}>
+        <EventMedia owner={{ kind: "session", id: session.id }} />
+      </Suspense>
 
       <div className="mb-6 flex justify-end">
         <DeleteSessionButton projectId={project.id} sessionId={session.id} label={formatDate(session.date)} />

@@ -552,6 +552,51 @@
     overscroll-behavior: contain;
   }
 
+  /* Media grid: photo thumbnails are buttons that open the photo dialog. */
+  .media-thumb {
+    display: block;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 0.5rem;
+    overflow: clip;
+    background: var(--brand-soft);
+    cursor: zoom-in;
+  }
+  .media-thumb img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  /* Photo dialog (native modal, light dismiss). */
+  .media-lightbox {
+    max-inline-size: min(64rem, calc(100vw - 1rem));
+    max-block-size: calc(100dvh - 1rem);
+    margin: auto;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    color: var(--foreground);
+  }
+  .media-lightbox:modal {
+    overscroll-behavior: contain;
+  }
+  .media-lightbox::backdrop {
+    background: rgb(26 18 24 / 0.75);
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+  .media-lightbox img {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: calc(100dvh - 7rem);
+    margin-inline: auto;
+    object-fit: contain;
+  }
+
   /* Filter chips: real radio inputs styled as pills (checked = accent). */
   .filter-chip {
     display: inline-flex;

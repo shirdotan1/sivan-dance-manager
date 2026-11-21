@@ -1,6 +1,6 @@
 import { KindBadge, MaterialAction, MaterialArtist, MaterialTitle } from "@/components/materials/MaterialText";
 import { StudentLink } from "@/components/StudentLink";
-import type { Material, MediaItem, Student } from "@/lib/types";
+import type { Material, Student } from "@/lib/types";
 
 /* Read-only sections shared by the lesson and session pages. */
 
@@ -82,34 +82,3 @@ export function NotesView({ notes }: { notes: string }) {
   );
 }
 
-const tints = ["bg-brand-soft", "bg-success-soft", "bg-danger-soft"];
-
-export function MediaView({ media }: { media: MediaItem[] }) {
-  return (
-    <section aria-labelledby="media-heading" className="card card-section">
-      <h2 id="media-heading" className="mb-3">
-        מדיה ({media.length})
-      </h2>
-      {media.length === 0 ? (
-        <p className="empty-state">אין עדיין תמונות או סרטונים.</p>
-      ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="list">
-          {media.map((item, i) => (
-            <li key={item.id}>
-              <figure>
-                <div className={`flex aspect-square items-center justify-center rounded-lg text-4xl ${tints[i % tints.length]}`}>
-                  <span aria-hidden="true">{item.kind === "video" ? "🎬" : "📷"}</span>
-                </div>
-                <figcaption className="mt-1 text-sm">
-                  <span className="visually-hidden">{item.kind === "video" ? "סרטון: " : "תמונה: "}</span>
-                  {item.caption}
-                </figcaption>
-              </figure>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-3 text-sm text-muted">אלה מצייני מקום — העלאת קבצים אמיתית תתווסף בשלב הבא.</p>
-    </section>
-  );
-}

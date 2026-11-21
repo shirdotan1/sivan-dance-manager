@@ -217,3 +217,14 @@ export async function getEventMedia(owner: MediaOwner) {
     .returns<Row[]>();
   return Promise.all((data ?? []).map(toView));
 }
+
+/**
+ * Bytes stored across all confirmed uploads (for the usage line; R2's free
+ * tier is 10 GB). Summed here because PostgREST aggregates are off by default.
+ */
+export async function getMediaUsage() {
+  const { supabase, signedIn } = await isSignedIn();
+  if (!signedIn) return 0;
+  const { data } = await supabase.from("media_items").select("size_bytes").not("uploaded_at", "is", null);
+  return (data ?? []).reduce((sum, r) => sum + Number(r.size_bytes ?? 0), 0);
+}
