@@ -117,3 +117,34 @@ test("the success path: exactly the previewed lessons, and the slot ends up acti
   expect(occ!.map((o) => o.series_date).sort()).toEqual(expected.dates);
   expect(occ!.find((o) => o.id === l!.id)?.series_date).toBe(date);
 });
+
+/**
+ * Two renewals at once, forced deterministically: a barrier makes both finish
+ * their reads before either writes. The contested set includes an adoption
+ * candidate. Exactly one row per slot date; the candidate linked exactly once.
+ */
+test("two concurrent renewals (barrier after reads), with an adoption candidate: one row per date, one adoption, no error", async () => {
+  const sb = await db();
+  const { seriesId, candidateId, date } = await slotWithCandidate("47", 2, "מקביליות");
+  let arrived = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const hooks = {
+    beforeWrite: async (id: string) => {
+      if (id !== seriesId) return;
+      if (++arrived === 2) release();
+      await gate; // neither writes until both have read
+    },
+  };
+  const [a, b] = await Promise.all([renewSeries(sb, [SPACE], hooks, [seriesId]), renewSeries(sb, [SPACE], hooks, [seriesId])]);
+  expect(arrived).toBe(2);
+
+  const { data: occ } = await sb.from("lessons").select("id,series_date,date").eq("series_id", seriesId).order("series_date");
+  const dates = occ!.map((o) => o.series_date);
+  expect(new Set(dates).size).toBe(dates.length); // one row per slot date
+  expect(occ!.filter((o) => o.id === candidateId)).toEqual([{ id: candidateId, series_date: date, date }]); // linked once
+  expect(occ!.filter((o) => o.series_date === date)).toHaveLength(1); // no envelope next to it
+  expect(a.adopted + b.adopted).toBe(1);
+  expect(a.created + b.created).toBe(dates.length - 1);
+  expect([...a.conflicts, ...b.conflicts]).toEqual([]);
+});

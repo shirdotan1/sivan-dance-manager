@@ -139,16 +139,7 @@ test("creating after the details changed since the preview is refused (the previ
   expect((await sb.from("lesson_series").select("id").eq("time", slotTime(info, 30))).data).toEqual([]);
 });
 
-test("renewal twice at the same moment creates no duplicates", async ({ page, context }, info) => {
-  const weekday = weekdayOf(addDays(todayIL(), 3));
-  const seriesId = await newSeriesInDb(weekday, slotTime(info, 0));
-  const second = await context.newPage();
-  await Promise.all([go(page, `/spaces/${SPACE}`), go(second, `/spaces/${SPACE}`)]);
-  await second.close();
-  const occ = await occurrences(seriesId);
-  expect(occ.map((o) => o.series_date)).toEqual(expectedDates(weekday));
-  expect(new Set(occ.map((o) => o.series_date)).size).toBe(occ.length);
-});
+// Concurrency is tested at the renewal-function level (e2e/series-core.spec.ts), forced with a barrier.
 
 test("renewal never recreates a cancelled occurrence or duplicates a moved one", async ({ page }, info) => {
   const sb = await db();
