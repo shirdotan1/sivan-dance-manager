@@ -35,7 +35,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   // Weekly slots: fill the next 8 weeks before showing the month (failure must not hide the calendar).
   const { supabase } = await requireUser();
-  await renewSeries(supabase).catch((e) => console.error("series renewal failed", e));
+  await renewSeries(supabase)
+    .then((r) => r.conflicts.length && console.warn("series renewal skipped conflicting dates", r.conflicts))
+    .catch((e) => console.error("series renewal failed", e));
   const [events, legend, spaces, projects] = await Promise.all([
     getCalendarEvents(gridFirst, gridLast),
     getCalendarLegend(),

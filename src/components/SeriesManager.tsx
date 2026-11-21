@@ -99,8 +99,8 @@ export function SeriesForm({ spaceId, groups, today }: { spaceId: string; groups
             </p>
             <ul className="mt-2 list-disc ps-5 text-sm">
               <li>
-                {preview.create > 0
-                  ? `ייווצרו ${preview.create} שיעורים עד ${formatDate(preview.until)} (8 שבועות קדימה; ממשיך להתחדש).`
+                {preview.create.length > 0
+                  ? `ייווצרו ${preview.create.length} שיעורים עד ${formatDate(preview.until)} (8 שבועות קדימה; ממשיך להתחדש).`
                   : "לא ייווצרו שיעורים חדשים בשמונת השבועות הקרובים."}
               </li>
               {preview.adopt.length > 0 && (
@@ -109,6 +109,14 @@ export function SeriesForm({ spaceId, groups, today }: { spaceId: string; groups
                   שייווצר כפל: {preview.adopt.map((a) => formatDate(a.date)).join(", ")}.
                 </li>
               )}
+              {preview.conflicts.map((c) => (
+                <li key={c.date} className="font-medium text-danger">
+                  התנגשות ב־{formatDate(c.date)}:{" "}
+                  {c.kind === "ambiguous"
+                    ? `יש ${c.lessonIds.length} שיעורים באותה שעה, ולא ברור לאיזה מהם לצרף.`
+                    : "כבר יש באותה שעה שיעור של משבצת שבועית אחרת."}
+                </li>
+              ))}
               {mismatches.map((a) => (
                 <li key={a.id}>
                   בשיעור של {formatDate(a.date)} הקבוצה היא ״{groupName(a.groupId)}״ ובמשבצת ״{groupName(preview.groupId)}״ — הקבוצה של
@@ -123,12 +131,15 @@ export function SeriesForm({ spaceId, groups, today }: { spaceId: string; groups
           <button type="submit" name="intent" value="preview" className={preview ? "btn btn-secondary" : "btn btn-primary"} disabled={pending}>
             {pending ? "בודקת…" : preview ? "בדיקה מחדש" : "בדיקה"}
           </button>
-          {preview && (
+          {preview && preview.conflicts.length === 0 && (
             <button type="submit" name="intent" value="create" className="btn btn-primary" disabled={pending}>
               יצירת המשבצת
             </button>
           )}
         </div>
+        {preview && preview.conflicts.length > 0 && (
+          <p className="text-sm font-medium">אי אפשר ליצור את המשבצת כל עוד יש התנגשויות. אפשר לבחור שעה או יום אחרים, או להתחיל מתאריך מאוחר יותר.</p>
+        )}
         <p role="alert" className="text-sm font-medium text-danger empty:hidden">
           {state.error}
         </p>

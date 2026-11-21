@@ -5,12 +5,21 @@ import type { LessonSeries } from "@/lib/types";
 /**
  * Weekly slots (studio spaces). Every occurrence is a real lesson row linked
  * to its slot by (series_id, series_date). Rules:
- *  - Renewal fills the next 8 weeks with envelopes, only for slot dates that
- *    have NO row at all (active, cancelled or moved). The database enforces
- *    it: unique (series_id, series_date) + INSERT … ON CONFLICT DO NOTHING,
- *    so two renewals at once can't duplicate.
- *  - Adoption: a one-off lesson already sitting on a slot date at the slot's
- *    time in the same space is linked to the slot instead of duplicated.
+ *  - Renewal fills the next 8 weeks, only for slot dates that have NO row of
+ *    that slot (active, cancelled or moved). The database backs it up:
+ *    unique (series_id, series_date) + INSERT … ON CONFLICT DO NOTHING.
+ *  - Per slot date, among lessons in the space at the same date and time:
+ *      a lesson of ANOTHER slot          → conflict "other-series"
+ *      two or more one-off lessons       → conflict "ambiguous"
+ *      exactly one one-off lesson        → adopt it (link only)
+ *      none                              → create an envelope
+ *    A conflict is never created and never resolved silently: the preview
+ *    refuses, renewal skips the date (and re-plans it next time).
+ *  - Adoption only links (series_id, series_date); it never changes a
+ *    lesson's content, group included.
+ *  - Renewal is batched: a fixed number of queries whatever the number of
+ *    slots, and slots are planned in order (oldest first) against one
+ *    snapshot that includes the earlier slots' planned envelopes.
  *  - Participants are never pre-filled; the slot's group only labels/colours.
  *
  * No `server-only` here so the e2e suite can call renewal directly (with
@@ -68,77 +77,164 @@ export function horizon() {
   return { from, to: addDays(from, HORIZON_DAYS) };
 }
 
-/** One-off lessons in the space on these dates at this time (adoption candidates), one per date. */
-async function adoptable(supabase: Supabase, spaceId: string, time: string, dates: string[]) {
-  if (!dates.length) return [];
-  const { data, error } = await supabase
-    .from("lessons")
-    .select("id, date, time, group_id")
-    .eq("space_id", spaceId)
-    .is("series_id", null)
-    .is("cancelled_at", null)
-    .in("date", dates)
-    .order("created_at");
-  if (error) throw new Error(`adoption lookup: ${error.message}`);
-  const seen = new Set<string>();
-  return (data ?? []).filter((l) => shortTime(l.time) === time && !seen.has(l.date) && seen.add(l.date));
+// ---------- Planning (pure) ----------
+
+/** A lesson in the window, as planning sees it. */
+export interface WindowLesson {
+  id: string;
+  spaceId: string;
+  date: string;
+  time: string;
+  groupId: string | null;
+  seriesId: string | null;
 }
 
-/** Creates the missing occurrences of one slot within the window. */
-async function renewOne(supabase: Supabase, s: LessonSeries, from: string, to: string, hooks?: RenewHooks) {
-  const dates = slotDates(s, from, to);
-  if (!dates.length) return { created: 0, adopted: 0 };
-  const { data: existing, error } = await supabase.from("lessons").select("series_date").eq("series_id", s.id).in("series_date", dates);
-  if (error) throw new Error(`renewal lookup: ${error.message}`);
-  const have = new Set((existing ?? []).map((r) => r.series_date as string));
-  const missing = dates.filter((d) => !have.has(d));
-  const candidates = await adoptable(supabase, s.spaceId, s.time, missing);
-  await hooks?.beforeWrite?.(s.id);
+export interface Conflict {
+  date: string;
+  kind: "ambiguous" | "other-series";
+  lessonIds: string[];
+}
 
-  let adopted = 0;
-  for (const l of candidates) {
-    // Only if still a one-off (another renewal may have adopted it meanwhile:
-    // 0 rows is that race, not an error). A database error fails the renewal.
-    const { data, error: adoptError } = await supabase
-      .from("lessons")
-      .update({ series_id: s.id, series_date: l.date })
-      .eq("id", l.id)
-      .is("series_id", null)
-      .select("id");
-    if (adoptError) throw new Error(`adopting the lesson of ${l.date} failed: ${adoptError.message}`);
-    if (data?.length) {
-      adopted++;
-      have.add(l.date);
+export interface SlotPlan {
+  /** Slot dates in the window. */
+  dates: string[];
+  /** Dates that get a new envelope. */
+  create: string[];
+  /** One-off lessons to link (groupId: the lesson's own, kept as is). */
+  adopt: { id: string; date: string; groupId: string | null }[];
+  /** Dates that are neither created nor adopted — explained, never silent. */
+  conflicts: Conflict[];
+}
+
+type PlannedSlot = Pick<LessonSeries, "spaceId" | "weekday" | "time" | "startsOn" | "stopsOn"> & { id?: string };
+
+/**
+ * Plans one slot against a snapshot of the space's lessons in the window.
+ * `occupied`: slot dates that already have a row of this slot (by series_date).
+ */
+export function planSlot(slot: PlannedSlot, window: { from: string; to: string }, lessons: WindowLesson[], occupied: Set<string>): SlotPlan {
+  const plan: SlotPlan = { dates: slotDates(slot, window.from, window.to), create: [], adopt: [], conflicts: [] };
+  for (const date of plan.dates) {
+    if (occupied.has(date)) continue;
+    const same = lessons.filter((l) => l.spaceId === slot.spaceId && l.date === date && l.time === slot.time && (!slot.id || l.seriesId !== slot.id));
+    const otherSeries = same.filter((l) => l.seriesId);
+    const oneOffs = same.filter((l) => !l.seriesId);
+    if (otherSeries.length) plan.conflicts.push({ date, kind: "other-series", lessonIds: otherSeries.map((l) => l.id) });
+    else if (oneOffs.length > 1) plan.conflicts.push({ date, kind: "ambiguous", lessonIds: oneOffs.map((l) => l.id) });
+    else if (oneOffs.length === 1) plan.adopt.push({ id: oneOffs[0].id, date, groupId: oneOffs[0].groupId });
+    else plan.create.push(date);
+  }
+  return plan;
+}
+
+// ---------- Snapshot (reads) ----------
+
+async function windowLessons(supabase: Supabase, spaceIds: string[], from: string, to: string): Promise<WindowLesson[]> {
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("id, space_id, date, time, group_id, series_id")
+    .in("space_id", spaceIds)
+    .gte("date", from)
+    .lte("date", to);
+  if (error) throw new Error(`window lessons: ${error.message}`);
+  return (data ?? []).map((l) => ({
+    id: l.id,
+    spaceId: l.space_id,
+    date: l.date,
+    time: shortTime(l.time),
+    groupId: l.group_id,
+    seriesId: l.series_id,
+  }));
+}
+
+/** series_id → slot dates (series_date) in the window that already have a row (wherever it was moved). */
+async function occupiedDates(supabase: Supabase, seriesIds: string[], from: string, to: string) {
+  const out = new Map<string, Set<string>>(seriesIds.map((id) => [id, new Set<string>()]));
+  if (!seriesIds.length) return out;
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("series_id, series_date")
+    .in("series_id", seriesIds)
+    .gte("series_date", from)
+    .lte("series_date", to);
+  if (error) throw new Error(`occurrences: ${error.message}`);
+  for (const r of data ?? []) out.get(r.series_id)!.add(r.series_date);
+  return out;
+}
+
+// ---------- Renewal (reads, plan, writes) ----------
+
+export interface RenewResult {
+  created: number;
+  adopted: number;
+  conflicts: (Conflict & { seriesId: string })[];
+}
+
+/**
+ * Renews active slots (optionally of some spaces, or only some slots). A
+ * fixed number of queries: slots, occurrences, window lessons, one insert
+ * (+ one update per adopted lesson). Safe to run concurrently.
+ */
+export async function renewSeries(
+  supabase: Supabase,
+  spaceIds?: string[],
+  hooks?: RenewHooks,
+  onlySeriesIds?: string[],
+): Promise<RenewResult> {
+  const window = horizon();
+  let q = supabase.from("lesson_series").select(SERIES_SELECT).or(`stops_on.is.null,stops_on.gt.${window.from}`).order("created_at");
+  if (spaceIds) q = q.in("space_id", spaceIds);
+  if (onlySeriesIds) q = q.in("id", onlySeriesIds);
+  const { data, error } = await q;
+  if (error) throw new Error(`series: ${error.message}`);
+  const series = (data as SeriesRow[]).map(mapSeries);
+  const result: RenewResult = { created: 0, adopted: 0, conflicts: [] };
+  if (!series.length) return result;
+
+  const spaces = [...new Set(series.map((s) => s.spaceId))];
+  const [lessons, occupied] = await Promise.all([
+    windowLessons(supabase, spaces, window.from, window.to),
+    occupiedDates(supabase, series.map((s) => s.id), window.from, window.to),
+  ]);
+
+  const rows: Record<string, unknown>[] = [];
+  for (const s of series) {
+    const plan = planSlot(s, window, lessons, occupied.get(s.id)!);
+    for (const c of plan.conflicts) result.conflicts.push({ ...c, seriesId: s.id });
+    await hooks?.beforeWrite?.(s.id);
+
+    for (const a of plan.adopt) {
+      // Only if still a one-off. 0 rows = another renewal linked it first:
+      // create nothing for that date now (re-planned next time). An error fails.
+      const { data: linked, error: adoptError } = await supabase
+        .from("lessons")
+        .update({ series_id: s.id, series_date: a.date })
+        .eq("id", a.id)
+        .is("series_id", null)
+        .select("id");
+      if (adoptError) throw new Error(`adopting the lesson of ${a.date} failed: ${adoptError.message}`);
+      if (linked?.length) {
+        result.adopted++;
+        const l = lessons.find((x) => x.id === a.id);
+        if (l) l.seriesId = s.id;
+      }
+    }
+    for (const date of plan.create) {
+      rows.push({ space_id: s.spaceId, group_id: s.groupId ?? null, date, time: s.time, series_id: s.id, series_date: date });
+      // Later slots in this pass see this envelope (so two slots at the same time can't both create).
+      lessons.push({ id: `planned:${s.id}:${date}`, spaceId: s.spaceId, date, time: s.time, groupId: s.groupId ?? null, seriesId: s.id });
     }
   }
 
-  const rows = missing
-    .filter((d) => !have.has(d))
-    .map((d) => ({ space_id: s.spaceId, group_id: s.groupId ?? null, date: d, time: s.time, series_id: s.id, series_date: d }));
-  if (!rows.length) return { created: 0, adopted };
-  const { data: inserted, error: insError } = await supabase
-    .from("lessons")
-    .upsert(rows, { onConflict: "series_id,series_date", ignoreDuplicates: true })
-    .select("id");
-  if (insError) throw new Error(`renewal insert: ${insError.message}`);
-  return { created: inserted?.length ?? 0, adopted };
-}
-
-/** Renews every active slot (optionally of some spaces). Safe to run concurrently. */
-export async function renewSeries(supabase: Supabase, spaceIds?: string[], hooks?: RenewHooks) {
-  const { from, to } = horizon();
-  let q = supabase.from("lesson_series").select(SERIES_SELECT).or(`stops_on.is.null,stops_on.gt.${from}`);
-  if (spaceIds) q = q.in("space_id", spaceIds);
-  const { data, error } = await q;
-  if (error) throw new Error(`series: ${error.message}`);
-  let created = 0;
-  let adopted = 0;
-  for (const s of (data as SeriesRow[]).map(mapSeries)) {
-    const r = await renewOne(supabase, s, from, to, hooks);
-    created += r.created;
-    adopted += r.adopted;
+  if (rows.length) {
+    const { data: inserted, error: insError } = await supabase
+      .from("lessons")
+      .upsert(rows, { onConflict: "series_id,series_date", ignoreDuplicates: true })
+      .select("id");
+    if (insError) throw new Error(`renewal insert: ${insError.message}`);
+    result.created = inserted?.length ?? 0;
   }
-  return { created, adopted };
+  return result;
 }
 
 export async function getSeriesForSpace(supabase: Supabase, spaceId: string): Promise<LessonSeries[]> {
@@ -148,22 +244,13 @@ export async function getSeriesForSpace(supabase: Supabase, spaceId: string): Pr
 }
 
 /**
- * What creating this slot would do: envelopes to create and existing lessons
- * to adopt. Adoption only links (series_id, series_date) — it never changes
- * a lesson's content, group included; each adopted lesson's group is
- * returned so the preview can show a mismatch with the slot's group.
+ * What creating this slot would do (nothing is saved): envelopes to create,
+ * lessons to adopt (link only — each with its own group, so the preview can
+ * show a mismatch with the slot's group) and conflicts, which block creation.
  */
-export async function previewNewSeries(
-  supabase: Supabase,
-  input: { spaceId: string; weekday: number; time: string; startsOn: string },
-) {
-  const { from, to } = horizon();
-  const dates = slotDates({ weekday: input.weekday, startsOn: input.startsOn }, from, to);
-  const adopt = await adoptable(supabase, input.spaceId, input.time, dates);
-  return {
-    dates,
-    until: to,
-    adopt: adopt.map((l) => ({ id: l.id as string, date: l.date as string, groupId: (l.group_id as string | null) ?? null })),
-    create: dates.length - adopt.length,
-  };
+export async function previewNewSeries(supabase: Supabase, input: { spaceId: string; weekday: number; time: string; startsOn: string }) {
+  const window = horizon();
+  const lessons = await windowLessons(supabase, [input.spaceId], window.from, window.to);
+  const plan = planSlot({ spaceId: input.spaceId as LessonSeries["spaceId"], weekday: input.weekday, time: input.time, startsOn: input.startsOn }, window, lessons, new Set());
+  return { ...plan, until: window.to };
 }

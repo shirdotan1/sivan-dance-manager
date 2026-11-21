@@ -26,6 +26,25 @@ function expectedDates(weekday: number, startsOn = todayIL()) {
 /** A distinct test-hour time per test and width, so runs never share a slot. */
 const slotTime = (info: TestInfo, minute: number) => testSlotTime(info.project.name, minute);
 
+/**
+ * Clicks "יצירת המשבצת" and records the new slot the moment it exists —
+ * before any assertion that could fail — so cleanup always knows it.
+ */
+async function createAndRecord(page: Page, time: string) {
+  const sb = await db();
+  const before = new Set(((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data ?? []).map((r) => r.id));
+  await vis(page.getByRole("form", { name: "משבצת שבועית חדשה" })).getByRole("button", { name: "יצירת המשבצת" }).click();
+  let created: string[] = [];
+  await expect
+    .poll(async () => {
+      created = ((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data ?? []).map((r) => r.id).filter((id) => !before.has(id));
+      return created.length;
+    }, { timeout: 15_000 })
+    .toBe(1);
+  recordSeries(created[0]);
+  return created[0];
+}
+
 async function openSlotForm(page: Page) {
   await go(page, `/spaces/${SPACE}`);
   await vis(page.getByText("+ משבצת שבועית חדשה")).click();
@@ -60,12 +79,9 @@ test("creating a slot: preview first, then 8 weeks of envelopes, marked in the l
   // Nothing is saved by the preview.
   expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data).toEqual([]);
 
-  await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+  const seriesId = await createAndRecord(page, time);
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText(`נוצרו ${dates.length} שיעורים`);
-
-  const { data: series } = await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).single();
-  recordSeries(series!.id);
-  const occ = await occurrences(series!.id);
+  const occ = await occurrences(seriesId);
   expect(occ.map((o) => o.series_date)).toEqual(dates);
   for (const o of occ) {
     expect(o.date).toBe(o.series_date);
@@ -99,9 +115,8 @@ test("an existing one-off lesson on a slot date is adopted, not duplicated", asy
   await expect(preview).toContainText("שיעור קיים אחד יצורף למשבצת");
   await expect(preview).toContainText(`ייווצרו ${expectedDates(weekday).length - 1} שיעורים`);
   await expect(preview).not.toContainText("הקבוצה של השיעור נשארת"); // same (no) group: no mismatch note
-  await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+  await createAndRecord(page, time);
   await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText("1 שיעורים קיימים צורפו");
-  for (const r of (await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data!) recordSeries(r.id);
 
   const { data: sameDay } = await sb.from("lessons").select("id,series_id,series_date").eq("space_id", SPACE).eq("date", date).eq("time", time);
   expect(sameDay).toHaveLength(1);
@@ -198,9 +213,8 @@ for (const dir of [
     await expect(preview).toContainText(
       `הקבוצה היא ״${dir.lessonGroup ? a.name : "בלי קבוצה"}״ ובמשבצת ״${dir.slotGroup ? b.name : "בלי קבוצה"}״ — הקבוצה של השיעור נשארת כפי שהיא`,
     );
-    await form.getByRole("button", { name: "יצירת המשבצת" }).click();
+    await createAndRecord(page, time);
     await expect(vis(page.getByRole("status").filter({ hasText: "המשבצת של יום" }))).toContainText("1 שיעורים קיימים צורפו");
-    for (const r of (await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data!) recordSeries(r.id);
 
     const { data: after } = await sb.from("lessons").select("group_id,series_id,notes,date,time").eq("id", lesson.id).single();
     expect(after!.series_id).toBeTruthy(); // linked…
@@ -208,3 +222,71 @@ for (const dir of [
     expect(after!.date).toBe(date);
   });
 }
+
+/** Conflicts: never a silent pick, never a conflicting occurrence — explained, and creation refused. */
+async function forgeCreate(page: Page) {
+  // The create button is hidden when there are conflicts; submit intent=create anyway.
+  await vis(page.getByRole("form", { name: "משבצת שבועית חדשה" })).evaluate((form: HTMLFormElement) => {
+    const b = document.createElement("button");
+    b.type = "submit";
+    b.name = "intent";
+    b.value = "create";
+    form.appendChild(b);
+    b.click();
+  });
+}
+
+test("two one-off lessons at the same date and time: conflict, no silent pick, creation refused (also when forged)", async ({ page }, info) => {
+  const sb = await db();
+  const time = slotTime(info, 45);
+  const date = addDays(todayIL(), 12);
+  for (const n of [1, 2]) {
+    const { error } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} כפול${n} ${info.project.name}` });
+    if (error) throw error;
+  }
+  const form = await openSlotForm(page);
+  await form.getByLabel(/^יום בשבוע/).selectOption(String(weekdayOf(date)));
+  await form.getByLabel(/^שעה/).fill(time);
+  await form.getByRole("button", { name: "בדיקה" }).click();
+  const preview = form.getByRole("region", { name: "תצוגה מקדימה" });
+  await expect(preview).toContainText("יש 2 שיעורים באותה שעה, ולא ברור לאיזה מהם לצרף");
+  await expect(form.getByRole("button", { name: "יצירת המשבצת" })).toHaveCount(0);
+  await expect(form).toContainText("אי אפשר ליצור את המשבצת כל עוד יש התנגשויות");
+
+  await forgeCreate(page);
+  await expect(form.getByRole("alert")).toContainText("יש התנגשויות");
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data).toEqual([]);
+  const { data: same } = await sb.from("lessons").select("series_id").eq("space_id", SPACE).eq("date", date).eq("time", time);
+  expect(same!.every((l) => l.series_id === null)).toBe(true); // neither was picked
+});
+
+test("a lesson of another slot at the same date and time is a conflict that blocks creation", async ({ page }, info) => {
+  const sb = await db();
+  const time = slotTime(info, 50);
+  const weekday = weekdayOf(addDays(todayIL(), 6));
+  await newSeriesInDb(weekday, time);
+  await go(page, `/spaces/${SPACE}`); // the first slot fills its dates
+  const form = await openSlotForm(page);
+  await form.getByLabel(/^יום בשבוע/).selectOption(String(weekday));
+  await form.getByLabel(/^שעה/).fill(time);
+  await form.getByRole("button", { name: "בדיקה" }).click();
+  const preview = form.getByRole("region", { name: "תצוגה מקדימה" });
+  await expect(preview).toContainText("כבר יש באותה שעה שיעור של משבצת שבועית אחרת");
+  await expect(form.getByRole("button", { name: "יצירת המשבצת" })).toHaveCount(0);
+  await forgeCreate(page);
+  await expect(form.getByRole("alert")).toContainText("יש התנגשויות");
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time)).data).toHaveLength(1);
+});
+
+test("renewal never creates a conflicting occurrence: the newer of two same-time slots gets nothing, and the page says why", async ({ page }, info) => {
+  const time = slotTime(info, 55);
+  const weekday = weekdayOf(addDays(todayIL(), 1));
+  const older = await newSeriesInDb(weekday, time);
+  const newer = await newSeriesInDb(weekday, time);
+  await go(page, `/spaces/${SPACE}`);
+  expect((await occurrences(older)).map((o) => o.series_date)).toEqual(expectedDates(weekday));
+  expect(await occurrences(newer)).toEqual([]);
+  await expect(vis(page.getByRole("region", { name: /משבצות שבועיות/ }))).toContainText("באותה שעה כבר יש שיעור של משבצת אחרת");
+  await go(page, `/spaces/${SPACE}`);
+  expect(await occurrences(newer)).toEqual([]);
+});
