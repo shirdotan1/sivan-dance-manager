@@ -147,6 +147,8 @@ test("two concurrent renewals (barrier after reads), with an adoption candidate:
   expect(a.adopted + b.adopted).toBe(1);
   expect(a.created + b.created).toBe(dates.length - 1);
   expect([...a.conflicts, ...b.conflicts]).toEqual([]);
+  // The loser's guarded update found it already linked: reported as changed, not swallowed.
+  expect([...a.changed, ...b.changed]).toEqual([{ seriesId, date, lessonId: candidateId }]);
 });
 
 test("a cancelled one-off lesson on the slot's date and time is never adopted; renewal creates the occurrence as usual", async () => {
@@ -163,4 +165,26 @@ test("a cancelled one-off lesson on the slot's date and time is never adopted; r
   const { data: occ } = await sb.from("lessons").select("id").eq("series_id", seriesId).eq("series_date", date);
   expect(occ).toHaveLength(1); // the slot got its own occurrence that day
   expect(occ![0].id).not.toBe(candidateId);
+});
+
+test("a candidate moved between the read and the update is not adopted; the date is skipped and reported", async () => {
+  const sb = await db();
+  const { seriesId, candidateId, date } = await slotWithCandidate("49", 5, "זז-באמצע");
+  const moved = addDays(date, 1);
+  const r = await renewSeries(sb, [SPACE], {
+    beforeWrite: async (id) => {
+      if (id !== seriesId) return;
+      const { error } = await sb.from("lessons").update({ date: moved }).eq("id", candidateId);
+      if (error) throw error;
+    },
+  }, [seriesId]);
+  expect(r.adopted).toBe(0);
+  expect(r.changed).toEqual([{ seriesId, date, lessonId: candidateId }]);
+  const { data: c } = await sb.from("lessons").select("series_id,date").eq("id", candidateId).single();
+  expect(c).toEqual({ series_id: null, date: moved }); // not adopted, at its new date
+  expect((await sb.from("lessons").select("id").eq("series_id", seriesId).eq("series_date", date)).data).toEqual([]); // skipped this pass
+  // Next renewal re-plans it: no candidate on that date any more → the occurrence is created.
+  const next = await renewSeries(sb, [SPACE], undefined, [seriesId]);
+  expect(next.changed).toEqual([]);
+  expect((await sb.from("lessons").select("id").eq("series_id", seriesId).eq("series_date", date)).data).toHaveLength(1);
 });

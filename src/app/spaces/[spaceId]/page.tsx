@@ -98,6 +98,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
                 groupName={groupName(s.groupId)}
                 today={today}
                 conflicts={(renewal?.conflicts ?? []).filter((c) => c.seriesId === s.id)}
+                changed={(renewal?.changed ?? []).filter((c) => c.seriesId === s.id).map((c) => c.date)}
               />
             ))}
           </ul>
@@ -252,11 +253,14 @@ function SeriesItem({
   groupName,
   today,
   conflicts,
+  changed,
 }: {
   series: LessonSeries;
   groupName?: string;
   today: string;
   conflicts: Conflict[];
+  /** Dates whose planned adoption was skipped: the lesson changed meanwhile. */
+  changed: string[];
 }) {
   const stopped = Boolean(series.stopsOn && series.stopsOn <= today);
   return (
@@ -272,13 +276,16 @@ function SeriesItem({
         </span>
       </span>
       {stopped && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-sm">הופסקה</span>}
-      {conflicts.length > 0 && (
+      {conflicts.length + changed.length > 0 && (
         <ul className="basis-full text-sm font-medium text-danger" role="list">
           {conflicts.map((c) => (
             <li key={c.date}>
               לא נוצר שיעור ב־{formatDate(c.date)}:{" "}
               {c.kind === "ambiguous" ? "יש באותה שעה כמה שיעורים, ולא ברור לאיזה לצרף." : "באותה שעה כבר יש שיעור של משבצת אחרת."}
             </li>
+          ))}
+          {changed.map((d) => (
+            <li key={`changed-${d}`}>השיעור של {formatDate(d)} לא צורף למשבצת: הוא השתנה בזמן החידוש. בפתיחה הבאה של הדף זה ייבדק שוב.</li>
           ))}
         </ul>
       )}

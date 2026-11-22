@@ -175,6 +175,8 @@ export interface RenewResult {
   created: number;
   adopted: number;
   conflicts: (Conflict & { seriesId: string })[];
+  /** Planned adoptions skipped because the lesson changed since it was read (re-planned next time). */
+  changed: { seriesId: string; date: string; lessonId: string }[];
 }
 
 /**
@@ -195,7 +197,7 @@ export async function renewSeries(
   const { data, error } = await q;
   if (error) throw new Error(`series: ${error.message}`);
   const series = (data as SeriesRow[]).map(mapSeries);
-  const result: RenewResult = { created: 0, adopted: 0, conflicts: [] };
+  const result: RenewResult = { created: 0, adopted: 0, conflicts: [], changed: [] };
   if (!series.length) return result;
 
   const spaces = [...new Set(series.map((s) => s.spaceId))];
@@ -211,19 +213,26 @@ export async function renewSeries(
     await hooks?.beforeWrite?.(s.id);
 
     for (const a of plan.adopt) {
-      // Only if still a one-off. 0 rows = another renewal linked it first:
-      // create nothing for that date now (re-planned next time). An error fails.
+      // Guarded by the full identity that was read: still a one-off, still
+      // on that date at that time, not cancelled. 0 rows = it changed since
+      // (moved, cancelled, or linked by another renewal): skip the date, create
+      // nothing for it now, and report it (re-planned next time). An error fails.
       const { data: linked, error: adoptError } = await supabase
         .from("lessons")
         .update({ series_id: s.id, series_date: a.date })
         .eq("id", a.id)
         .is("series_id", null)
+        .eq("date", a.date)
+        .eq("time", s.time)
+        .is("cancelled_at", null)
         .select("id");
       if (adoptError) throw new Error(`adopting the lesson of ${a.date} failed: ${adoptError.message}`);
       if (linked?.length) {
         result.adopted++;
         const l = lessons.find((x) => x.id === a.id);
         if (l) l.seriesId = s.id;
+      } else {
+        result.changed.push({ seriesId: s.id, date: a.date, lessonId: a.id });
       }
     }
     for (const date of plan.create) {
