@@ -83,3 +83,45 @@ test("write 3 — cancelling an upload whose row deletion fails: reported, not a
   expect(ok.status()).toBe(200);
   expect(await rowsByCaption(caption)).toEqual([]);
 });
+
+/** Write 4: removing a student from the pool leaves her groups first, checked. */
+async function studentInGroup(label: string) {
+  const sb = await db();
+  const { data: g } = await sb.from("groups").select("id").eq("space_id", "new-high-school").limit(1).single();
+  const { data: s, error } = await sb.from("students").insert({ space_id: "new-high-school", name: `${TAG} ${label}` }).select("id,name").single();
+  if (error) throw error;
+  const m = await sb.from("group_members").insert({ group_id: g!.id, student_id: s.id });
+  if (m.error) throw m.error;
+  return s as { id: string; name: string };
+}
+const studentState = async (id: string) => {
+  const sb = await db();
+  const { data: s } = await sb.from("students").select("archived_at").eq("id", id).single();
+  const { count } = await sb.from("group_members").select("*", { count: "exact", head: true }).eq("student_id", id);
+  return { archived: Boolean(s!.archived_at), groups: count };
+};
+async function removeFromPool(page: import("@playwright/test").Page, name: string) {
+  const { go, vis } = await import("./support/fixtures");
+  await go(page, "/spaces/new-high-school");
+  await vis(page.getByRole("button", { name: `הסרה של ${name} מהמאגר` })).click();
+  const dialog = page.getByRole("dialog", { name: `להסיר את ${name} מהמאגר?` });
+  await dialog.getByRole("button", { name: "הסרה מהמאגר" }).click();
+  return dialog;
+}
+
+test.describe("write 4 — leaving the groups fails", () => {
+  test.use({ extraHTTPHeaders: { "x-test-fault": "groupMembersDelete" } });
+  test("nothing changes and the dialog says why", async ({ page }, info) => {
+    const s = await studentInGroup(`כתיבה4 ${info.project.name}`);
+    const dialog = await removeFromPool(page, s.name);
+    await expect(dialog.getByRole("alert")).toContainText("ההוצאה מהקבוצות נכשלה");
+    expect(await studentState(s.id)).toEqual({ archived: false, groups: 1 });
+  });
+});
+
+test("write 4 control — without the fault she leaves her groups and the pool", async ({ page }, info) => {
+  const s = await studentInGroup(`כתיבה4-ביקורת ${info.project.name}`);
+  const dialog = await removeFromPool(page, s.name);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => studentState(s.id)).toEqual({ archived: true, groups: 0 });
+});

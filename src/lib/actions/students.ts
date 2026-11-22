@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
+import { testFault } from "@/lib/testFaults";
 import { field, type ActionState } from "@/lib/actions/result";
 
 const SPACES = new Set(["new-high-school", "balance-studio", "private-lessons"]);
@@ -44,14 +45,16 @@ export async function addStudent(spaceId: string, _prev: ActionState, formData: 
  * lessons, sessions and payments keep her name. Also leaves her groups
  * (group membership is about the future).
  */
-export async function removeStudentFromPool(studentId: string): Promise<void> {
+export async function removeStudentFromPool(studentId: string): Promise<{ error: string } | void> {
   const { supabase } = await requireUser();
-  const { error } = await supabase
-    .from("students")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", studentId);
-  if (error) throw new Error("הסרה מהמאגר נכשלה.");
-  await supabase.from("group_members").delete().eq("student_id", studentId);
+  // Leave her groups first, checked: if that fails, nothing changed (she
+  // stays in the pool and her groups) and the dialog says so.
+  const groupsError = (await testFault("groupMembersDelete"))
+    ? "Injected test fault: groupMembersDelete"
+    : (await supabase.from("group_members").delete().eq("student_id", studentId)).error?.message;
+  if (groupsError) return { error: "ההוצאה מהקבוצות נכשלה, ולכן התלמידה לא הוסרה מהמאגר. כדאי לנסות שוב." };
+  const { error } = await supabase.from("students").update({ archived_at: new Date().toISOString() }).eq("id", studentId);
+  if (error) return { error: "התלמידה הוצאה מהקבוצות, אבל ההסרה מהמאגר נכשלה. כדאי לנסות שוב." };
   refresh();
 }
 
