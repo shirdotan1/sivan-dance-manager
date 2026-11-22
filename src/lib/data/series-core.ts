@@ -129,11 +129,18 @@ export function planSlot(slot: PlannedSlot, window: { from: string; to: string }
 
 // ---------- Snapshot (reads) ----------
 
+/**
+ * Lessons in the window that planning considers. Cancelled lessons are left
+ * out: a cancelled lesson is never an adoption candidate (nor a conflict).
+ * A slot's own cancelled occurrences still count as existing — through
+ * occupiedDates (by series_date) — so they are never recreated.
+ */
 async function windowLessons(supabase: Supabase, spaceIds: string[], from: string, to: string): Promise<WindowLesson[]> {
   const { data, error } = await supabase
     .from("lessons")
     .select("id, space_id, date, time, group_id, series_id")
     .in("space_id", spaceIds)
+    .is("cancelled_at", null)
     .gte("date", from)
     .lte("date", to);
   if (error) throw new Error(`window lessons: ${error.message}`);

@@ -148,3 +148,19 @@ test("two concurrent renewals (barrier after reads), with an adoption candidate:
   expect(a.created + b.created).toBe(dates.length - 1);
   expect([...a.conflicts, ...b.conflicts]).toEqual([]);
 });
+
+test("a cancelled one-off lesson on the slot's date and time is never adopted; renewal creates the occurrence as usual", async () => {
+  const sb = await db();
+  const { seriesId, candidateId, date } = await slotWithCandidate("48", 4, "מבוטל-לא-מאומץ");
+  const { error } = await sb.from("lessons").update({ cancelled_at: new Date().toISOString() }).eq("id", candidateId);
+  if (error) throw error;
+  const r = await renewSeries(sb, [SPACE], undefined, [seriesId]);
+  expect(r.adopted).toBe(0);
+  expect(r.conflicts).toEqual([]);
+  const { data: candidate } = await sb.from("lessons").select("series_id,cancelled_at").eq("id", candidateId).single();
+  expect(candidate!.series_id).toBeNull(); // not adopted
+  expect(candidate!.cancelled_at).toBeTruthy(); // untouched
+  const { data: occ } = await sb.from("lessons").select("id").eq("series_id", seriesId).eq("series_date", date);
+  expect(occ).toHaveLength(1); // the slot got its own occurrence that day
+  expect(occ![0].id).not.toBe(candidateId);
+});
