@@ -1,5 +1,5 @@
 import { createSlotExactly, previewNewSeries, renewSeries } from "../src/lib/data/series-core";
-import { TAG, TEST_HOUR, db, recordSeries } from "./support/env";
+import { TAG, TEST_CORE_HOUR, db, recordSeries } from "./support/env";
 import { expect, test } from "./support/fixtures";
 
 /** Renewal at the function level (no page): failures and races, forced deterministically. */
@@ -18,7 +18,7 @@ test.beforeEach(({}, info) => test.skip(info.project.name !== "phone-390", "no b
 async function slotWithCandidate(minute: string, daysAhead: number, label: string) {
   const sb = await db();
   const date = addDays(todayIL(), daysAhead);
-  const time = `${TEST_HOUR}:${minute}`;
+  const time = `${TEST_CORE_HOUR}:${minute}`;
   const { data: s, error } = await sb.from("lesson_series").insert({ space_id: SPACE, weekday: weekdayOf(date), time, starts_on: todayIL() }).select("id").single();
   if (error) throw error;
   recordSeries(s.id);
@@ -60,14 +60,14 @@ async function nothingLeft(time: string, candidateId?: string, candidateTime?: s
 
 test("a candidate taken by another slot between the check and the writes: refused and fully rolled back", async () => {
   const sb = await db();
-  const time = `${TEST_HOUR}:42`;
+  const time = `${TEST_CORE_HOUR}:42`;
   const date = addDays(todayIL(), 16);
   const input = { spaceId: SPACE, weekday: weekdayOf(date), time, startsOn: todayIL(), groupId: null };
   const { data: l } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} נחטף` }).select("id").single();
   const expected = await previewNewSeries(sb, input);
   expect(expected.adopt.map((a) => a.id)).toEqual([l!.id]);
   // The "other" slot that grabs it at the last moment (recorded, so cleanup removes it).
-  const { data: other } = await sb.from("lesson_series").insert({ space_id: SPACE, weekday: 0, time: `${TEST_HOUR}:43`, starts_on: "2030-01-06" }).select("id").single();
+  const { data: other } = await sb.from("lesson_series").insert({ space_id: SPACE, weekday: 0, time: `${TEST_CORE_HOUR}:43`, starts_on: "2030-01-06" }).select("id").single();
   recordSeries(other!.id);
   const r = await createSlotExactly(sb, input, expected, {
     beforeApply: async () => {
@@ -84,7 +84,7 @@ test("a candidate taken by another slot between the check and the writes: refuse
 
 test("a new lesson on a slot date between the check and the writes: caught after writing, fully rolled back", async () => {
   const sb = await db();
-  const time = `${TEST_HOUR}:44`;
+  const time = `${TEST_CORE_HOUR}:44`;
   const weekday = weekdayOf(addDays(todayIL(), 17));
   const input = { spaceId: SPACE, weekday, time, startsOn: todayIL(), groupId: null };
   const expected = await previewNewSeries(sb, input);
@@ -101,7 +101,7 @@ test("a new lesson on a slot date between the check and the writes: caught after
 
 test("the success path: exactly the previewed lessons, and the slot ends up active", async () => {
   const sb = await db();
-  const time = `${TEST_HOUR}:46`;
+  const time = `${TEST_CORE_HOUR}:46`;
   const date = addDays(todayIL(), 18);
   const input = { spaceId: SPACE, weekday: weekdayOf(date), time, startsOn: todayIL(), groupId: null };
   const { data: l } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} מצטרף` }).select("id").single();

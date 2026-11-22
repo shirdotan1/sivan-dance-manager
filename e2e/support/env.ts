@@ -11,13 +11,18 @@ export const TAG = "בדיקה-אוטו";
 /**
  * Weekly slots have no text to tag. Every slot a test creates is recorded
  * (recordSeries) the moment it exists; cleanup deletes only recorded ids.
- * Tests also keep slots in the test hours (04:00–05:59: 04 at the phone
- * width, 05 at the desktop width) — an extra filter on top of the ids,
+ * Tests also keep slots in the test hours (04:00–06:59: 04 at the phone
+ * width, 05 at the desktop width, 06 for function-level tests) — an extra filter on top of the ids,
  * never the selection itself. Times typed into a form must be whole
  * 5 minutes (the time fields use step=300).
  */
 export const TEST_HOUR = "05";
-export const TEST_WINDOW = { from: "04:00", to: "05:59:59" } as const;
+/**
+ * Function-level tests (no browser, phone project only) use their own hour,
+ * so they never share a time with either width's UI tests (04 / 05).
+ */
+export const TEST_CORE_HOUR = "06";
+export const TEST_WINDOW = { from: "04:00", to: "06:59:59" } as const;
 /** A test slot time: 04:mm at the phone width, 05:mm at the desktop width. */
 export const testSlotTime = (projectName: string, minute: number) =>
   `${projectName === "desktop-1280" ? "05" : "04"}:${String(minute).padStart(2, "0")}`;

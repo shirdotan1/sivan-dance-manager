@@ -1,5 +1,5 @@
 import { assertSlotDate, renewSeries, slotDates } from "../src/lib/data/series-core";
-import { TEST_HOUR, db, recordSeries } from "./support/env";
+import { TEST_CORE_HOUR, db, recordSeries } from "./support/env";
 import { expect, test } from "./support/fixtures";
 
 /**
@@ -37,7 +37,7 @@ for (const tz of ["UTC", "Asia/Jerusalem"] as const) {
         const dates = slotDates({ weekday: c.weekday, startsOn: c.from }, c.from, c.to);
         expect(dates).toEqual(c.dates);
         const sb = await db();
-        const time = `${TEST_HOUR}:${c.minute}`;
+        const time = `${TEST_CORE_HOUR}:${c.minute}`;
         // Stopped right after the window: renewal with this explicit window covers it,
         // but it stays inactive for the rest of the run.
         const stopsOn = new Date(`${c.to}T00:00:00Z`);

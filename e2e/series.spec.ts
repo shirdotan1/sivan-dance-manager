@@ -136,7 +136,7 @@ test("creating after the details changed since the preview is refused (the previ
   await form.getByLabel(/^שעה/).fill(slotTime(info, 30));
   await expect(form.getByRole("region", { name: "תצוגה מקדימה" })).toHaveCount(0);
   await expect(form.getByRole("button", { name: "יצירת המשבצת" })).toHaveCount(0);
-  expect((await sb.from("lesson_series").select("id").eq("time", slotTime(info, 30))).data).toEqual([]);
+  expect((await sb.from("lesson_series").select("id").eq("time", slotTime(info, 30)).eq("weekday", 1)).data).toEqual([]);
 });
 
 // Concurrency is tested at the renewal-function level (e2e/series-core.spec.ts), forced with a barrier.
