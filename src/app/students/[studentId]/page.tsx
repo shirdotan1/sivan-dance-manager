@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ReminderButton } from "@/components/ReminderButton";
 import { StudentEditForm } from "@/components/StudentEditForm";
 import { getStudentCard } from "@/lib/data/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -78,6 +79,20 @@ export default async function StudentPage({ params }: Props) {
               <dd className={`text-2xl font-extrabold ${owed > 0 ? "text-danger" : "text-success"}`}>
                 {owed > 0 ? formatCurrency(owed) : "✓ אין חוב"}
               </dd>
+              {owed > 0 && (
+                <dd className="mt-2">
+                  <ReminderButton
+                    studentId={student.id}
+                    studentName={student.name}
+                    phone={student.phone}
+                    parentName={student.parentName}
+                    parentPhone={student.parentPhone}
+                    lines={withPayment
+                      .filter((s) => !s.payment!.paid)
+                      .map((s) => ({ projectName: s.projectName, date: s.date, amount: s.payment!.amount }))}
+                  />
+                </dd>
+              )}
             </div>
           )}
           <div>
