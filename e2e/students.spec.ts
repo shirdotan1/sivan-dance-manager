@@ -14,7 +14,7 @@ test("pool: 'עריכה' opens one inline form, prefilled, and closes", async ({
   await btn.click();
   await expect(btn).toHaveAttribute("aria-expanded", "true");
   const form = vis(page.getByRole("form", { name: `עריכת הפרטים של ${SEED.student.name}` }));
-  await expect(form.getByLabel(/^שם/)).toHaveValue(SEED.student.name);
+  await expect(form.getByLabel(/^שם( \*)?$/)).toHaveValue(SEED.student.name);
   await expectNoOverflow(page);
   await btn.click();
   await expect(form).toHaveCount(0);
@@ -25,7 +25,7 @@ test("rename to another student's name is refused", async ({ page }) => {
   const { data: other } = await sb
     .from("students").select("name").eq("space_id", "private-lessons").neq("id", SEED.student.id).is("archived_at", null).limit(1).single();
   const form = await openEdit(page, SEED.student.id);
-  await form.getByLabel(/^שם/).fill(other!.name);
+  await form.getByLabel(/^שם( \*)?$/).fill(other!.name);
   await form.getByRole("button", { name: "שמירת הפרטים" }).click();
   await expect(vis(page.getByRole("alert").filter({ hasText: /./ })).first()).toBeVisible();
   expect((await sb.from("students").select("name").eq("id", SEED.student.id).single()).data!.name).toBe(SEED.student.name);
@@ -42,7 +42,7 @@ test("rename refused when the name is shared by an active + a removed student", 
   if (ins.error) throw ins.error;
   const third = ins.data.find((x) => x.name.includes("שלישית"))!;
   const form = await openEdit(page, third.id);
-  await form.getByLabel(/^שם/).fill(dup);
+  await form.getByLabel(/^שם( \*)?$/).fill(dup);
   await form.getByRole("button", { name: "שמירת הפרטים" }).click();
   await expect(vis(page.getByRole("alert").filter({ hasText: "יש כבר תלמידה בשם" })).first()).toBeVisible();
   expect((await sb.from("students").select("name").eq("id", third.id).single()).data!.name).toContain("שלישית");
@@ -53,7 +53,7 @@ test("FINAL-2: a renamed student shows the new name across her history", async (
   const newName = `שונה-אוטו ${info.project.name}|${SEED.student.name}`;
   try {
     let form = await openEdit(page, SEED.student.id);
-    await form.getByLabel(/^שם/).fill(newName);
+    await form.getByLabel(/^שם( \*)?$/).fill(newName);
     await form.getByRole("button", { name: "שמירת הפרטים" }).click();
     await expect(vis(page.getByRole("heading", { level: 1, name: newName }))).toBeVisible();
     for (const p of [
@@ -69,7 +69,7 @@ test("FINAL-2: a renamed student shows the new name across her history", async (
     }
     // Restore through the UI too.
     form = await openEdit(page, SEED.student.id);
-    await form.getByLabel(/^שם/).fill(SEED.student.name);
+    await form.getByLabel(/^שם( \*)?$/).fill(SEED.student.name);
     await form.getByRole("button", { name: "שמירת הפרטים" }).click();
     await expect(vis(page.getByRole("heading", { level: 1, name: SEED.student.name }))).toBeVisible();
   } finally {

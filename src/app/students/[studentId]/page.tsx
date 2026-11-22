@@ -48,6 +48,18 @@ export default async function StudentPage({ params }: Props) {
         )}
         {student.archived && <span className="chip">הוסרה מהמאגר — ההיסטוריה נשמרת</span>}
       </p>
+      {(student.parentName || student.parentPhone) && (
+        <p className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 text-muted">
+          <span>
+            הורה{student.parentName ? `: ${student.parentName}` : ""}
+          </span>
+          {student.parentPhone && (
+            <a href={`tel:${student.parentPhone.replace(/[\s\-().\/]/g, "")}`} dir="ltr" className="tap-link text-brand-strong underline underline-offset-4">
+              {student.parentPhone}
+            </a>
+          )}
+        </p>
+      )}
 
       <details className="disclosure mb-6">
         <summary>עריכת פרטים</summary>

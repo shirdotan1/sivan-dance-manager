@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { requireUser } from "@/lib/supabase/server";
 import { testFault } from "@/lib/testFaults";
+import { phoneWarning } from "@/lib/phone";
 import { field, type ActionState } from "@/lib/actions/result";
 
 const SPACES = new Set(["new-high-school", "balance-studio", "private-lessons"]);
@@ -36,8 +37,9 @@ export async function addStudent(spaceId: string, _prev: ActionState, formData: 
 
   const { error } = await supabase.from("students").insert({ space_id: spaceId, name, phone });
   if (error) return { error: "השמירה נכשלה. כדאי לנסות שוב." };
+  const warning = phone ? phoneWarning("טלפון", phone) : null;
   refresh();
-  return { message: `${name} נוספה למאגר.`, done: Date.now() };
+  return { message: `${name} נוספה למאגר.`, done: Date.now(), ...(warning ? { warning } : {}) };
 }
 
 /**
@@ -67,6 +69,9 @@ export async function removeStudentFromPool(studentId: string): Promise<{ error:
 export async function updateStudent(studentId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = field(formData, "name").replace(/\s+/g, " ");
   const phone = field(formData, "phone");
+  // Parent contact: optional, reminder recipient only (stage 5 defines accounts separately).
+  const parentName = field(formData, "parentName").replace(/\s+/g, " ");
+  const parentPhone = field(formData, "parentPhone");
   if (!name) return { error: "יש להזין שם תלמידה." };
 
   const { supabase } = await requireUser();
@@ -97,8 +102,13 @@ export async function updateStudent(studentId: string, _prev: ActionState, formD
     };
   }
 
-  const { error } = await supabase.from("students").update({ name, phone }).eq("id", studentId);
+  const { error } = await supabase
+    .from("students")
+    .update({ name, phone, parent_name: parentName, parent_phone: parentPhone })
+    .eq("id", studentId);
   if (error) return { error: "השמירה נכשלה. כדאי לנסות שוב." };
   refresh();
-  return { message: `הפרטים של ${name} עודכנו.`, done: Date.now() };
+  // Never blocks: existing numbers were never validated; the note says what won't work.
+  const warnings = [phone && phoneWarning("טלפון", phone), parentPhone && phoneWarning("טלפון הורה", parentPhone)].filter(Boolean);
+  return { message: `הפרטים של ${name} עודכנו.`, done: Date.now(), ...(warnings.length ? { warning: warnings.join(" ") } : {}) };
 }

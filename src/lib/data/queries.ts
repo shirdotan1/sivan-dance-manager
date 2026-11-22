@@ -414,7 +414,7 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
   const { supabase } = await requireUser();
   const { data: s, error } = await supabase
     .from("students")
-    .select("id, name, phone, archived_at, space_id, spaces(name, kind)")
+    .select("id, name, phone, parent_name, parent_phone, archived_at, space_id, spaces(name, kind)")
     .eq("id", studentId)
     .maybeSingle();
   if (error) fail("student", error);
@@ -445,6 +445,8 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
       id: s.id,
       name: s.name,
       phone: s.phone,
+      ...(s.parent_name ? { parentName: s.parent_name as string } : {}),
+      ...(s.parent_phone ? { parentPhone: s.parent_phone as string } : {}),
       ...(s.archived_at ? { archived: true } : {}),
       spaceId: s.space_id,
       spaceName: space?.name ?? "",

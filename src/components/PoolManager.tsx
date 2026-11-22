@@ -101,6 +101,9 @@ export function PoolManager({ spaceId, students }: { spaceId: string; students: 
       <p role="status" className="mt-2 text-sm text-success empty:hidden">
         {state.message}
       </p>
+      <p role="status" className="mt-2 rounded-2xl bg-coral-soft p-3 text-sm font-medium empty:hidden">
+        {state.warning}
+      </p>
       <p role="alert" className="mt-2 text-sm font-medium text-danger empty:hidden">
         {state.error}
       </p>
