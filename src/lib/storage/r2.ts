@@ -84,6 +84,7 @@ export async function signUpload(key: string, contentType: string) {
 }
 
 export async function startMultipart(key: string, contentType: string) {
+  if (await testFault("startMultipart")) throw new Error("Injected test fault: startMultipart");
   const { client, Bucket } = s3();
   const out = await client.send(new CreateMultipartUploadCommand({ Bucket, Key: key, ContentType: contentType }));
   if (!out.UploadId) throw new Error("R2 did not return an upload id.");
