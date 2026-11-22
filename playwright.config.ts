@@ -42,13 +42,13 @@ export default defineConfig({
       timeout: 240_000,
     },
     {
-      // Same build, with storage deletes failing on purpose (test bucket only;
-      // see injectedFault in src/lib/storage/r2.ts). Used by e2e/media-events.spec.ts.
+      // Same build with per-request fault injection enabled (src/lib/testFaults.ts):
+      // a test opts in with the x-test-fault header; test bucket only.
       command: `npx next start -p ${FAULT_PORT}`,
       url: `http://localhost:${FAULT_PORT}/login`,
       reuseExistingServer: true,
       timeout: 60_000,
-      env: { MEDIA_TEST_FAULT: "deletePrefix" },
+      env: { MEDIA_TEST_FAULTS: "on" },
     },
   ],
 });

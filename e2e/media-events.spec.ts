@@ -88,7 +88,7 @@ test("deleting a project deletes the stored files of all its sessions first", as
 });
 
 test.describe("when storage deletion fails", () => {
-  test.use({ baseURL: `http://localhost:${FAULT_PORT}` });
+  test.use({ baseURL: `http://localhost:${FAULT_PORT}`, extraHTTPHeaders: { "x-test-fault": "deletePrefix" } });
 
   test("the lesson is NOT deleted, its files stay, and the dialog says why", async ({ page, request }, info) => {
     const lessonId = await newLesson(`כשל ${info.project.name}`);
@@ -124,4 +124,17 @@ test("an upload pending for more than 24h is removed with its object when the pa
   expect(await objectExists(staleKey)).toBe(false);
   expect((await sb.from("media_items").select("id").eq("id", freshId)).data).toHaveLength(1);
   expect(await objectExists(freshKey)).toBe(true);
+});
+
+test.describe("the fault server without the header", () => {
+  test.use({ baseURL: `http://localhost:${FAULT_PORT}` });
+
+  test("behaves normally: faults are opt-in per request", async ({ page, request }, info) => {
+    const lessonId = await newLesson(`בלי-תקלה ${info.project.name}`);
+    await uploadPhoto(request, { kind: "lesson", id: lessonId }, `${TAG} בלי-תקלה ${info.project.name}`);
+    await go(page, `/spaces/new-high-school/lessons/${lessonId}`);
+    await confirmDelete(page, "מחיקת השיעור", "למחוק את השיעור?", "מחיקת השיעור");
+    await page.waitForURL(/\/spaces\/new-high-school$/);
+    expect(await listKeys(`lessons/${lessonId}/`)).toEqual([]);
+  });
 });
