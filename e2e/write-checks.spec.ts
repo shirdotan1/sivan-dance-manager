@@ -67,3 +67,19 @@ test("write 2 — a non-media upload whose row deletion fails: reported; the obj
   expect(await objectExists(b.key)).toBe(false);
   expect(await rowsByCaption(caption2)).toEqual([]);
 });
+
+test("write 3 — cancelling an upload whose row deletion fails: reported, not a silent success", async ({ request }, info) => {
+  const lessonId = await newLesson(`כתיבה3 ${info.project.name}`);
+  const caption = `${TAG} כתיבה3 ${info.project.name}`;
+  const start = await request.post("/api/media/uploads", { headers: json, data: { owner: { kind: "lesson", id: lessonId }, contentType: "image/png", caption } });
+  const { mediaId } = await start.json();
+  const res = await request.post(`/api/media/uploads/${mediaId}/abort`, { headers: { ...json, "x-test-fault": "mediaRowDelete" }, data: {} });
+  expect(res.status()).toBe(500);
+  expect((await res.json()).error).toContain("ביטול ההעלאה לא הושלם");
+  expect(await rowsByCaption(caption)).toHaveLength(1);
+
+  // Control: the same cancel without the fault succeeds and leaves nothing.
+  const ok = await request.post(`/api/media/uploads/${mediaId}/abort`, { headers: json, data: {} });
+  expect(ok.status()).toBe(200);
+  expect(await rowsByCaption(caption)).toEqual([]);
+});

@@ -201,10 +201,15 @@ export async function abortUpload(mediaId: string, input: { uploadId?: unknown }
   const { row, supabase } = a;
   if (row.uploaded_at) return fail(409, "ההעלאה כבר הסתיימה; אפשר למחוק את הפריט.");
   if (row.storage_key) {
-    if (typeof input.uploadId === "string") await abortMultipart(row.storage_key, input.uploadId);
-    await deleteObject(row.storage_key);
+    try {
+      if (typeof input.uploadId === "string") await abortMultipart(row.storage_key, input.uploadId);
+      await deleteObject(row.storage_key);
+    } catch {
+      return fail(502, "ביטול ההעלאה לא הושלם: האחסון לא זמין כרגע. כדאי לנסות שוב.");
+    }
   }
-  await supabase.from("media_items").delete().eq("id", row.id);
+  const cleanupError = await deleteMediaRow(supabase, row.id);
+  if (cleanupError) return fail(500, "ביטול ההעלאה לא הושלם: מחיקת הפריט הממתין נכשלה (הוא יוסר אוטומטית אחרי 24 שעות).");
   return { ok: true as const };
 }
 
