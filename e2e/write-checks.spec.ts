@@ -125,3 +125,21 @@ test("write 4 control — without the fault she leaves her groups and the pool",
   await expect(dialog).toBeHidden();
   await expect.poll(() => studentState(s.id)).toEqual({ archived: true, groups: 0 });
 });
+
+/** Ruling 3: a renewal failure on the space page is shown, not only logged. */
+test.describe("renewal failure on the space page", () => {
+  test.use({ extraHTTPHeaders: { "x-test-fault": "renewal" } });
+  test("is shown in the slots section; the page still renders its lessons", async ({ page }) => {
+    const { go, vis } = await import("./support/fixtures");
+    await go(page, "/spaces/new-high-school");
+    const slots = vis(page.getByRole("region", { name: /משבצות שבועיות/ }));
+    await expect(slots.getByRole("alert")).toContainText("חידוש השיעורים של המשבצות נכשל כרגע");
+    await expect(vis(page.getByRole("heading", { level: 2, name: /^שיעורים/ }))).toBeVisible();
+  });
+});
+
+test("renewal control — no alert without the fault", async ({ page }) => {
+  const { go, vis } = await import("./support/fixtures");
+  await go(page, "/spaces/new-high-school");
+  await expect(vis(page.getByRole("region", { name: /משבצות שבועיות/ })).getByRole("alert")).toHaveCount(0);
+});

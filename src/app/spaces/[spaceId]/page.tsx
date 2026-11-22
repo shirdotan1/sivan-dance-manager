@@ -12,6 +12,7 @@ import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/d
 import { getSeriesForSpace, renewSeries, type Conflict } from "@/lib/data/series";
 import { hasStarted, nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { requireUser } from "@/lib/supabase/server";
+import { testFault } from "@/lib/testFaults";
 import { formatCurrency, formatDate, projectTypeLabel, todayIso, WEEKDAYS } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
 import type { Lesson, LessonSeries, PrivateSpace, StudioSpace } from "@/lib/types";
@@ -41,10 +42,16 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
   const { supabase } = await requireUser();
   // Weekly slots: fill the next 8 weeks before showing the lessons. A failure
   // must not hide the page — the next view renews again.
-  const renewal = await renewSeries(supabase, [space.id]).catch((e) => {
+  // A failure is shown in the slots section (and logged); the page still renders.
+  const outcome = await (async () => {
+    if (await testFault("renewal")) throw new Error("Injected test fault: renewal");
+    return { result: await renewSeries(supabase, [space.id]), error: null };
+  })().catch((e: unknown) => {
     console.error("series renewal failed", e);
-    return null;
+    return { result: null, error: e instanceof Error ? e.message : String(e) };
   });
+  const renewal = outcome.result;
+  const renewalError = outcome.error;
   const [spaceLessons, series] = await Promise.all([getLessonsForSpace(space.id), getSeriesForSpace(supabase, space.id)]);
   const pool = activeStudents(space.students);
   const today = todayIso();
@@ -87,6 +94,15 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
         <h2 id="series-heading" className="mb-3">
           משבצות שבועיות ({series.filter((x) => !x.stopsOn || x.stopsOn > today).length})
         </h2>
+        {renewalError && (
+          <p role="alert" className="mb-4 rounded-2xl bg-danger-soft p-3 text-sm font-medium">
+            חידוש השיעורים של המשבצות נכשל כרגע, ולכן ייתכן ששיעורים קרובים חסרים ברשימה. השיעורים שכבר קיימים מוצגים; פתיחה מחדש של
+            הדף תנסה שוב.
+            <span className="block font-normal text-muted" dir="auto">
+              ({renewalError})
+            </span>
+          </p>
+        )}
         {series.length === 0 ? (
           <p className="empty-state mb-4">אין עדיין משבצות קבועות. משבצת יוצרת שיעורים לשמונה שבועות קדימה ומתחדשת לבד.</p>
         ) : (
