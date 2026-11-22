@@ -6,14 +6,14 @@ import { MaterialTitle } from "@/components/materials/MaterialText";
 import { GroupCard } from "@/components/GroupCard";
 import { GroupForm } from "@/components/GroupForm";
 import { PoolManager } from "@/components/PoolManager";
-import { SeriesForm } from "@/components/SeriesManager";
+import { SeriesChangeForm, SeriesForm } from "@/components/SeriesManager";
 import { createGroup } from "@/lib/actions/groups";
 import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/data/queries";
-import { getSeriesForSpace, renewSeries, type Conflict } from "@/lib/data/series";
+import { getSeriesForSpace, renewSeries, slotDates, type Conflict } from "@/lib/data/series";
 import { hasStarted, nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { requireUser } from "@/lib/supabase/server";
 import { testFault } from "@/lib/testFaults";
-import { formatCurrency, formatDate, projectTypeLabel, todayIso, WEEKDAYS } from "@/lib/format";
+import { addDays, formatCurrency, formatDate, projectTypeLabel, todayIso, WEEKDAYS } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
 import type { Lesson, LessonSeries, PrivateSpace, StudioSpace } from "@/lib/types";
 
@@ -63,6 +63,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
   const past = spaceLessons.filter((l) => hasStarted(l, now));
   const held = past.filter((l) => tookPlace(l, now)).length;
   const groupName = (id?: string) => space.groups.find((g) => g.id === id)?.name;
+  const seriesTime = (id: string) => series.find((x) => x.id === id)?.time;
 
   return (
     <>
@@ -110,6 +111,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
             {series.map((s) => (
               <SeriesItem
                 key={s.id}
+                spaceId={space.id}
                 series={s}
                 groupName={groupName(s.groupId)}
                 today={today}
@@ -143,12 +145,12 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
               <p className="empty-state mb-6">אין שיעורים קרובים.</p>
             ) : (
               <>
-                <LessonList spaceId={space.id} lessons={upcoming.slice(0, 4)} groupName={groupName} labelledBy="upcoming-heading" />
+                <LessonList spaceId={space.id} lessons={upcoming.slice(0, 4)} groupName={groupName} seriesTime={seriesTime} labelledBy="upcoming-heading" />
                 {upcoming.length > 4 && (
                   <details className="disclosure mt-3">
                     <summary>עוד {upcoming.length - 4} שיעורים קרובים</summary>
                     <div className="px-4 pb-4">
-                      <LessonList spaceId={space.id} lessons={upcoming.slice(4)} groupName={groupName} />
+                      <LessonList spaceId={space.id} lessons={upcoming.slice(4)} groupName={groupName} seriesTime={seriesTime} />
                     </div>
                   </details>
                 )}
@@ -160,7 +162,7 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
             {past.length === 0 ? (
               <p className="empty-state">עדיין אין שיעורים שהתקיימו.</p>
             ) : (
-              <LessonList spaceId={space.id} lessons={past} groupName={groupName} labelledBy="past-heading" />
+              <LessonList spaceId={space.id} lessons={past} groupName={groupName} seriesTime={seriesTime} labelledBy="past-heading" />
             )}
           </>
         )}
@@ -265,12 +267,14 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
 }
 
 function SeriesItem({
+  spaceId,
   series,
   groupName,
   today,
   conflicts,
   changed,
 }: {
+  spaceId: string;
   series: LessonSeries;
   groupName?: string;
   today: string;
@@ -305,6 +309,19 @@ function SeriesItem({
           ))}
         </ul>
       )}
+      {!stopped && (
+        <details className="disclosure basis-full">
+          <summary>שינוי המשבצת מכאן והלאה</summary>
+          <SeriesChangeForm
+            spaceId={spaceId}
+            seriesId={series.id}
+            weekday={series.weekday}
+            time={series.time}
+            today={today}
+            nextDate={slotDates(series, today, addDays(today, 7))[0] ?? today}
+          />
+        </details>
+      )}
     </li>
   );
 }
@@ -313,11 +330,14 @@ function LessonList({
   spaceId,
   lessons,
   groupName,
+  seriesTime,
   labelledBy,
 }: {
   spaceId: string;
   lessons: Lesson[];
   groupName: (id?: string) => string | undefined;
+  /** A slot's time (for the "moved" mark: the original day and time). */
+  seriesTime: (id: string) => string | undefined;
   labelledBy?: string;
 }) {
   return (
@@ -338,6 +358,17 @@ function LessonList({
             <span className="flex flex-wrap items-center gap-2 text-sm">
               {lesson.cancelled && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 font-medium">מבוטל</span>}
               {lesson.seriesId && <span className="rounded-full bg-brand-soft px-2.5 py-0.5">משבצת שבועית</span>}
+              {lesson.seriesId && (lesson.dateOverridden || lesson.timeOverridden) && (
+                <span className="rounded-full bg-coral-soft px-2.5 py-0.5">
+                  הוזז מהמשבצת · במקור {formatDate(lesson.seriesDate!)}
+                  {seriesTime(lesson.seriesId) && (
+                    <>
+                      {" "}
+                      בשעה <bdi dir="ltr">{seriesTime(lesson.seriesId)}</bdi>
+                    </>
+                  )}
+                </span>
+              )}
               <span>
                 {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} חומרים
               </span>

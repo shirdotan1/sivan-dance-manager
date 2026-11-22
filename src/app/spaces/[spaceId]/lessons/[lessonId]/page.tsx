@@ -10,6 +10,7 @@ import { EventMedia, EventMediaSkeleton } from "@/components/media/EventMedia";
 import { NotesView, ParticipantsView, MaterialsView } from "@/components/view/EventView";
 import { getLesson, getLessonsForSpace, getMaterials, getSpace } from "@/lib/data/queries";
 import { formatDate } from "@/lib/format";
+import { requireUser } from "@/lib/supabase/server";
 import { materialsByIds, studentsByIds } from "@/lib/lookup";
 
 type Props = PageProps<"/spaces/[spaceId]/lessons/[lessonId]">;
@@ -38,6 +39,10 @@ export default async function LessonPage({ params, searchParams }: Props) {
   const href = (id: string) => `/spaces/${space.id}/lessons/${id}`;
 
   const group = space.groups.find((g) => g.id === lesson.groupId);
+  // The slot's time, for the "moved" mark (original day and time).
+  const slotTime = lesson.seriesId
+    ? ((await (await requireUser()).supabase.from("lesson_series").select("time").eq("id", lesson.seriesId).maybeSingle()).data?.time as string | undefined)?.slice(0, 5)
+    : undefined;
   const base = `/spaces/${space.id}/lessons/${lesson.id}`;
 
   return (
@@ -51,8 +56,19 @@ export default async function LessonPage({ params, searchParams }: Props) {
         {space.name} · בשעה <time dateTime={`${lesson.date}T${lesson.time}`}>{lesson.time}</time>
       </p>
       {lesson.seriesId && (
-        <p className="mb-2">
+        <p className="mb-2 flex flex-wrap gap-2">
           <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-sm">משבצת שבועית</span>
+          {(lesson.dateOverridden || lesson.timeOverridden) && (
+            <span className="rounded-full bg-coral-soft px-2.5 py-0.5 text-sm">
+              הוזז מהמשבצת · במקור {formatDate(lesson.seriesDate!)}
+              {slotTime && (
+                <>
+                  {" "}
+                  בשעה <bdi dir="ltr">{slotTime}</bdi>
+                </>
+              )}
+            </span>
+          )}
         </p>
       )}
       {lesson.cancelled && (

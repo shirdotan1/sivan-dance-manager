@@ -62,12 +62,25 @@ export function mapSeries(r: SeriesRow): LessonSeries {
 /** Day of week of an ISO date (0 = Sunday), independent of the server's time zone. */
 export const weekdayOf = (iso: string) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 
-/** Slot dates in [from, to] (inclusive), from its start and before its stop date. */
+/** Guard: a generated date must fall on the slot's weekday — or generation fails. */
+export function assertSlotDate(date: string, weekday: number) {
+  if (weekdayOf(date) !== weekday) throw new Error(`slot date ${date} is not on weekday ${weekday}`);
+}
+
+/**
+ * Slot dates in [from, to] (inclusive), from its start and before its stop date.
+ * Pure calendar-date arithmetic (UTC noon / midnight, never the host's time
+ * zone) and wall-clock times: a slot keeps its local time across daylight
+ * saving changes, whatever time zone the server runs in.
+ */
 export function slotDates(s: Pick<LessonSeries, "weekday" | "startsOn" | "stopsOn">, from: string, to: string): string[] {
   let d = from > s.startsOn ? from : s.startsOn;
   d = addDays(d, (s.weekday - weekdayOf(d) + 7) % 7);
   const out: string[] = [];
-  for (; d <= to && (!s.stopsOn || d < s.stopsOn); d = addDays(d, 7)) out.push(d);
+  for (; d <= to && (!s.stopsOn || d < s.stopsOn); d = addDays(d, 7)) {
+    assertSlotDate(d, s.weekday);
+    out.push(d);
+  }
   return out;
 }
 
@@ -189,8 +202,10 @@ export async function renewSeries(
   spaceIds?: string[],
   hooks?: RenewHooks,
   onlySeriesIds?: string[],
+  /** Defaults to today + 8 weeks; tests pass other windows (beyond the horizon, DST). */
+  windowOverride?: { from: string; to: string },
 ): Promise<RenewResult> {
-  const window = horizon();
+  const window = windowOverride ?? horizon();
   let q = supabase.from("lesson_series").select(SERIES_SELECT).or(`stops_on.is.null,stops_on.gt.${window.from}`).order("created_at");
   if (spaceIds) q = q.in("space_id", spaceIds);
   if (onlySeriesIds) q = q.in("id", onlySeriesIds);
@@ -381,4 +396,310 @@ export async function createSlotExactly(
   } catch (e) {
     return await rollback(`יצירת המשבצת נכשלה (${e instanceof Error ? e.message : "שגיאה"}).`);
   }
+}
+
+// ---------- Changing a slot from a date ----------
+
+export type SlotChangeKind = "time" | "day" | "stop";
+
+export interface SlotChangeInput {
+  seriesId: string;
+  kind: SlotChangeKind;
+  /** Effective date: the change applies to occurrences whose slot date is on or after it. */
+  from: string;
+  /** New time (time and day changes). */
+  time?: string;
+  /** New weekday (day change). */
+  weekday?: number;
+}
+
+interface Occurrence {
+  id: string;
+  date: string;
+  time: string;
+  seriesDate: string;
+  cancelled: boolean;
+  dateOverridden: boolean;
+  timeOverridden: boolean;
+  /** Has participants, materials, notes or media. */
+  hasContent: boolean;
+}
+
+export interface SlotChangePlan {
+  kind: SlotChangeKind;
+  seriesId: string;
+  from: string;
+  /** The slot as it is now. */
+  current: LessonSeries;
+  /** Time change: every occurrence from `from` (any state) moves to the new slot. */
+  moving: { id: string; date: string }[];
+  /** Time change: those that get the new time (not protected, not cancelled). */
+  retime: { id: string; date: string; time: string }[];
+  /** Time change: changed by hand — keeps its own time. */
+  protectedTime: { id: string; date: string; time: string }[];
+  /** Cancelled — keeps its status. */
+  cancelled: { id: string; date: string }[];
+  /** Day change: untouched envelopes that are removed. */
+  remove: { id: string; date: string }[];
+  /** Day change / stop: occurrences that stay as they are (under the old slot). */
+  keep: { id: string; date: string; why: "content" | "moved" | "cancelled" | "stop" }[];
+  /** Day change: what the new slot will create / adopt from `from`. */
+  next?: { create: string[]; adopt: { id: string; date: string; groupId: string | null }[]; conflicts: Conflict[]; dates: string[] };
+  /** Blocks the change (time: another lesson at the new time; day: the new slot's conflicts). */
+  conflicts: Conflict[];
+}
+
+async function occurrencesFrom(supabase: Supabase, seriesId: string, from: string): Promise<Occurrence[]> {
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("id, date, time, series_date, notes, cancelled_at, date_overridden, time_overridden")
+    .eq("series_id", seriesId)
+    .gte("series_date", from)
+    .order("series_date");
+  if (error) throw new Error(`occurrences: ${error.message}`);
+  const ids = (data ?? []).map((l) => l.id as string);
+  const withContent = new Set<string>();
+  if (ids.length) {
+    for (const table of ["lesson_participants", "lesson_songs", "media_items"] as const) {
+      const { data: rows, error: e } = await supabase.from(table).select("lesson_id").in("lesson_id", ids);
+      if (e) throw new Error(`${table}: ${e.message}`);
+      for (const r of rows ?? []) withContent.add(r.lesson_id as string);
+    }
+  }
+  return (data ?? []).map((l) => ({
+    id: l.id,
+    date: l.date,
+    time: shortTime(l.time),
+    seriesDate: l.series_date,
+    cancelled: Boolean(l.cancelled_at),
+    dateOverridden: l.date_overridden,
+    timeOverridden: l.time_overridden,
+    hasContent: withContent.has(l.id) || (l.notes ?? "").trim() !== "",
+  }));
+}
+
+/** What the change would do (nothing is saved). */
+export async function planSlotChange(supabase: Supabase, input: SlotChangeInput): Promise<SlotChangePlan> {
+  const { data: row, error } = await supabase.from("lesson_series").select(SERIES_SELECT).eq("id", input.seriesId).single();
+  if (error || !row) throw new Error("המשבצת לא נמצאה.");
+  const current = mapSeries(row as SeriesRow);
+  const occ = await occurrencesFrom(supabase, current.id, input.from);
+  const plan: SlotChangePlan = {
+    kind: input.kind,
+    seriesId: current.id,
+    from: input.from,
+    current,
+    moving: [],
+    retime: [],
+    protectedTime: [],
+    cancelled: [],
+    remove: [],
+    keep: [],
+    conflicts: [],
+  };
+
+  if (input.kind === "time") {
+    const time = input.time!;
+    for (const o of occ) {
+      plan.moving.push({ id: o.id, date: o.date });
+      if (o.cancelled) plan.cancelled.push({ id: o.id, date: o.date });
+      else if (o.timeOverridden) plan.protectedTime.push({ id: o.id, date: o.date, time: o.time });
+      else plan.retime.push({ id: o.id, date: o.date, time: o.time });
+    }
+    // Another (not cancelled) lesson in the space at the new time on a retimed date blocks the change.
+    const dates = [...new Set(plan.retime.map((r) => r.date))];
+    if (dates.length) {
+      const { data: others, error: e } = await supabase
+        .from("lessons")
+        .select("id, date, time, series_id")
+        .eq("space_id", current.spaceId)
+        .is("cancelled_at", null)
+        .in("date", dates);
+      if (e) throw new Error(`conflicts: ${e.message}`);
+      const moving = new Set(plan.moving.map((m) => m.id));
+      for (const d of dates) {
+        const hit = (others ?? []).filter((l) => l.date === d && shortTime(l.time) === time && !moving.has(l.id));
+        if (hit.length) plan.conflicts.push({ date: d, kind: hit.some((l) => l.series_id) ? "other-series" : "ambiguous", lessonIds: hit.map((l) => l.id) });
+      }
+    }
+  } else if (input.kind === "day") {
+    for (const o of occ) {
+      if (o.cancelled) plan.keep.push({ id: o.id, date: o.date, why: "cancelled" });
+      else if (o.dateOverridden || o.timeOverridden) plan.keep.push({ id: o.id, date: o.date, why: "moved" });
+      else if (o.hasContent) plan.keep.push({ id: o.id, date: o.date, why: "content" });
+      else plan.remove.push({ id: o.id, date: o.date });
+    }
+    const next = await previewNewSeries(supabase, { spaceId: current.spaceId, weekday: input.weekday!, time: input.time!, startsOn: input.from });
+    plan.next = { create: next.create, adopt: next.adopt, conflicts: next.conflicts, dates: next.dates };
+    plan.conflicts = next.conflicts;
+  } else {
+    for (const o of occ) plan.keep.push({ id: o.id, date: o.date, why: "stop" });
+  }
+  return plan;
+}
+
+/** Same content: every id list and the new slot's plan. */
+export function sameChangeContent(a: SlotChangePlan, b: SlotChangePlan) {
+  const ids = (xs: { id: string; date: string }[]) => xs.map((x) => `${x.id}@${x.date}`).sort().join(",");
+  const key = (p: SlotChangePlan) =>
+    JSON.stringify({
+      kind: p.kind,
+      seriesId: p.seriesId,
+      from: p.from,
+      moving: ids(p.moving),
+      retime: ids(p.retime),
+      protectedTime: ids(p.protectedTime),
+      cancelled: ids(p.cancelled),
+      remove: ids(p.remove),
+      keep: ids(p.keep),
+      conflicts: p.conflicts.map((c) => `${c.date}:${c.kind}:${[...c.lessonIds].sort().join(",")}`).sort(),
+    });
+  return key(a) === key(b) && (!a.next || !b.next ? a.next === b.next : samePlanContent(a.next, b.next));
+}
+
+export type ChangeSlotResult = { ok: true; newSeriesId?: string } | { ok: false; reason: "conflict" | "changed" | "failed"; message: string };
+
+/**
+ * Applies a slot change only if its plan is still exactly the confirmed one.
+ *  time: a new slot from `from` with the new time; EVERY occurrence from
+ *        `from` (protected and cancelled included) moves to it with the same
+ *        id and series_date — so the new slot's renewal never duplicates a
+ *        date — and only the unprotected, uncancelled ones get the new time.
+ *        The old slot stops at `from`. Renewal beyond the horizon uses the new
+ *        slot, i.e. the new time.
+ *  day:  the new slot is created exactly as previewed (like a new slot),
+ *        untouched envelopes of the old slot from `from` are removed, the old
+ *        slot stops at `from`; occurrences with content / moved / cancelled stay.
+ *  stop: the slot stops at `from`; existing occurrences stay as they are.
+ * New slots stay inactive until the end; any deviation rolls back.
+ */
+export async function applySlotChange(
+  supabase: Supabase,
+  input: SlotChangeInput,
+  expected: SlotChangePlan,
+  hooks?: { beforeApply?: () => Promise<void> },
+): Promise<ChangeSlotResult> {
+  const plan = await planSlotChange(supabase, input);
+  if (plan.conflicts.length) return { ok: false, reason: "conflict", message: "יש התנגשויות בתאריכים שהשינוי נוגע בהם, ולכן הוא לא נשמר." };
+  if (!sameChangeContent(plan, expected)) {
+    return { ok: false, reason: "changed", message: "השיעורים של המשבצת השתנו מאז הבדיקה, ולכן השינוי לא נשמר. כדאי לבדוק שוב." };
+  }
+  const old = plan.current;
+  const oldStop = old.stopsOn ?? null;
+  await hooks?.beforeApply?.();
+
+  const fail = (message: string): ChangeSlotResult => ({ ok: false, reason: "failed", message });
+
+  if (input.kind === "stop") {
+    const { data, error } = await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id).select("id");
+    if (error || data?.length !== 1) return fail("עצירת המשבצת נכשלה. כדאי לנסות שוב.");
+    return { ok: true };
+  }
+
+  if (input.kind === "time") {
+    const { data: created, error } = await supabase
+      .from("lesson_series")
+      .insert({ space_id: old.spaceId, group_id: old.groupId ?? null, weekday: old.weekday, time: input.time, starts_on: input.from, stops_on: input.from })
+      .select("id")
+      .single();
+    if (error || !created) return fail("שינוי השעה נכשל. כדאי לנסות שוב.");
+    const newId = created.id as string;
+    const rollback = async (message: string): Promise<ChangeSlotResult> => {
+      const steps = [
+        ...plan.retime.map((r) => supabase.from("lessons").update({ time: r.time }).eq("id", r.id)),
+        supabase.from("lessons").update({ series_id: old.id }).eq("series_id", newId),
+        supabase.from("lesson_series").update({ stops_on: oldStop }).eq("id", old.id),
+        supabase.from("lesson_series").delete().eq("id", newId),
+      ];
+      for (const step of steps) {
+        const { error: e } = await step;
+        if (e) return fail(`${message} גם הביטול נכשל (${e.message}) — כדאי לבדוק את המשבצת.`);
+      }
+      return { ok: false, reason: "changed", message };
+    };
+    try {
+      // Every occurrence from the date moves — protected and cancelled included.
+      const { data: moved, error: e1 } = await supabase
+        .from("lessons")
+        .update({ series_id: newId })
+        .eq("series_id", old.id)
+        .gte("series_date", input.from)
+        .select("id");
+      if (e1) throw new Error(e1.message);
+      if (moved?.length !== plan.moving.length) return await rollback("מספר השיעורים של המשבצת השתנה בזמן השמירה, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
+      // Only unprotected, uncancelled ones get the new time (guarded by what was read).
+      for (const r of plan.retime) {
+        const { data, error: e } = await supabase
+          .from("lessons")
+          .update({ time: input.time })
+          .eq("id", r.id)
+          .eq("series_id", newId)
+          .eq("time_overridden", false)
+          .is("cancelled_at", null)
+          .select("id");
+        if (e) throw new Error(e.message);
+        if (data?.length !== 1) return await rollback("שיעור של המשבצת השתנה בזמן השמירה, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
+      }
+      const { error: e2 } = await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id);
+      if (e2) throw new Error(e2.message);
+      const { error: e3 } = await supabase.from("lesson_series").update({ stops_on: null }).eq("id", newId);
+      if (e3) throw new Error(e3.message);
+      return { ok: true, newSeriesId: newId };
+    } catch (e) {
+      return await rollback(`שינוי השעה נכשל (${e instanceof Error ? e.message : "שגיאה"}).`);
+    }
+  }
+
+  // Day change: first the new slot, exactly as previewed (inactive until it's applied)…
+  const created = await createSlotExactly(
+    supabase,
+    { spaceId: old.spaceId, weekday: input.weekday!, time: input.time!, startsOn: input.from, groupId: old.groupId ?? null },
+    plan.next!,
+  );
+  if (!created.ok) return created;
+  // …then remove the untouched envelopes (guarded: still of the old slot, still not cancelled/moved) and stop the old slot.
+  const undoNew = async (message: string): Promise<ChangeSlotResult> => {
+    const adoptIds = plan.next!.adopt.map((a) => a.id);
+    const steps = [
+      adoptIds.length ? supabase.from("lessons").update({ series_id: null, series_date: null }).eq("series_id", created.seriesId).in("id", adoptIds) : null,
+      supabase.from("lessons").delete().eq("series_id", created.seriesId),
+      supabase.from("lesson_series").delete().eq("id", created.seriesId),
+      supabase.from("lesson_series").update({ stops_on: oldStop }).eq("id", old.id),
+    ];
+    for (const step of steps) {
+      if (!step) continue;
+      const { error: e } = await step;
+      if (e) return fail(`${message} גם הביטול נכשל (${e.message}) — כדאי לבדוק את המשבצות.`);
+    }
+    return { ok: false, reason: "changed", message };
+  };
+  const removeIds = plan.remove.map((r) => r.id);
+  if (removeIds.length) {
+    // Deleting cascades to participants etc.: re-check, right before deleting,
+    // that every envelope is still empty (the window left is milliseconds,
+    // for a single user). Anything with content → roll back, delete nothing.
+    const { data: stillThere, error: re } = await supabase.from("lessons").select("id, notes").in("id", removeIds);
+    if (re) return await undoNew(`בדיקת השיעורים הריקים נכשלה (${re.message}).`);
+    let filled = (stillThere ?? []).some((l) => (l.notes ?? "").trim() !== "");
+    for (const table of ["lesson_participants", "lesson_songs", "media_items"] as const) {
+      const { data: rows, error: te } = await supabase.from(table).select("lesson_id").in("lesson_id", removeIds).limit(1);
+      if (te) return await undoNew(`בדיקת השיעורים הריקים נכשלה (${te.message}).`);
+      if (rows?.length) filled = true;
+    }
+    if (filled) return await undoNew("שיעור שהיה אמור להיות מוסר קיבל תוכן בינתיים, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
+    const { data, error } = await supabase
+      .from("lessons")
+      .delete()
+      .in("id", removeIds)
+      .eq("series_id", old.id)
+      .is("cancelled_at", null)
+      .eq("date_overridden", false)
+      .eq("time_overridden", false)
+      .select("id");
+    if (error) return await undoNew(`הסרת השיעורים הריקים נכשלה (${error.message}).`);
+    if (data?.length !== removeIds.length) return await undoNew("שיעור שהיה אמור להיות מוסר השתנה בזמן השמירה, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
+  }
+  const { error: stopError } = await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id);
+  if (stopError) return fail(`המשבצת החדשה נוצרה והשיעורים הריקים הוסרו, אבל עצירת המשבצת הישנה נכשלה (${stopError.message}).`);
+  return { ok: true, newSeriesId: created.seriesId };
 }

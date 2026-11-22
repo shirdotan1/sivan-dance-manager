@@ -3,8 +3,17 @@
 import { refresh } from "next/cache";
 import { field, type ActionState } from "@/lib/actions/result";
 import { DATE_RE, TIME_RE } from "@/lib/data/entries";
-import { createSlotExactly, previewNewSeries, type Conflict } from "@/lib/data/series";
-import { formatDate, shortTime, WEEKDAYS } from "@/lib/format";
+import {
+  applySlotChange,
+  createSlotExactly,
+  planSlotChange,
+  previewNewSeries,
+  type Conflict,
+  type SlotChangeInput,
+  type SlotChangeKind,
+  type SlotChangePlan,
+} from "@/lib/data/series";
+import { formatDate, shortTime, todayIso, WEEKDAYS } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 
 const STUDIOS = new Set(["new-high-school", "balance-studio"]);
@@ -84,4 +93,61 @@ export async function createSeries(spaceId: string, prev: SeriesFormState, formD
     message: `המשבצת של יום ${WEEKDAYS[weekday]} בשעה ${t} נוצרה (מ־${formatDate(startsOn)}): ${parts.join(", ")}.`,
     done: (prev.done ?? 0) + 1,
   };
+}
+
+export type SeriesChangeState = ActionState & { preview?: SlotChangePlan & { key: string; time?: string; weekday?: number } };
+
+/**
+ * "שינוי המשבצת מכאן והלאה", in two steps like creation: intent "preview"
+ * saves nothing and returns exactly what will change; intent "apply" saves
+ * only for the same input, and applySlotChange compares the content again.
+ */
+export async function changeSeries(spaceId: string, seriesId: string, prev: SeriesChangeState, formData: FormData): Promise<SeriesChangeState> {
+  if (!STUDIOS.has(spaceId)) return { error: "משבצות שבועיות קיימות רק במרחבי סטודיו." };
+  const kind = field(formData, "kind");
+  const from = field(formData, "from");
+  const time = shortTime(field(formData, "time"));
+  const weekdayRaw = field(formData, "weekday");
+  const fieldErrors: Record<string, string> = {};
+  if (kind !== "time" && kind !== "day" && kind !== "stop") fieldErrors.kind = "יש לבחור מה משנים.";
+  if (!DATE_RE.test(from)) fieldErrors.from = "יש לבחור מאיזה תאריך.";
+  if (kind !== "stop" && !TIME_RE.test(time)) fieldErrors.time = "יש לבחור שעה.";
+  if (kind === "day" && !/^[0-6]$/.test(weekdayRaw)) fieldErrors.weekday = "יש לבחור יום.";
+  if (Object.keys(fieldErrors).length) return { error: "יש לתקן את השדות המסומנים.", fieldErrors, done: prev.done };
+
+  const { supabase } = await requireUser();
+  const { data: s } = await supabase.from("lesson_series").select("space_id, weekday, time, starts_on, stops_on").eq("id", seriesId).maybeSingle();
+  if (!s || s.space_id !== spaceId) return { error: "המשבצת לא נמצאה." };
+  if (from < todayIso()) return { error: "יש לתקן את השדות המסומנים.", fieldErrors: { from: "השינוי חל מהיום והלאה." }, done: prev.done };
+  if (from < s.starts_on) return { error: "יש לתקן את השדות המסומנים.", fieldErrors: { from: `המשבצת מתחילה ב־${formatDate(s.starts_on)}.` }, done: prev.done };
+  if (kind === "time" && time === shortTime(s.time)) {
+    return { error: "יש לתקן את השדות המסומנים.", fieldErrors: { time: "זו כבר השעה של המשבצת." }, done: prev.done };
+  }
+  if (kind === "day" && Number(weekdayRaw) === s.weekday) {
+    return { error: "יש לתקן את השדות המסומנים.", fieldErrors: { weekday: "זה כבר היום של המשבצת; לשינוי שעה בלבד יש לבחור ״שעה״." }, done: prev.done };
+  }
+
+  const input: SlotChangeInput = {
+    seriesId,
+    kind: kind as SlotChangeKind,
+    from,
+    ...(kind !== "stop" ? { time } : {}),
+    ...(kind === "day" ? { weekday: Number(weekdayRaw) } : {}),
+  };
+  const key = JSON.stringify(input);
+  const plan = await planSlotChange(supabase, input);
+  const preview = { ...plan, key, time: input.time, weekday: input.weekday };
+
+  if (field(formData, "intent") !== "apply") return { preview, done: prev.done };
+  if (prev.preview?.key !== key) return { preview, done: prev.done, error: "הפרטים השתנו מאז הבדיקה. כדאי לעבור שוב על התצוגה המקדימה ולאשר." };
+  const r = await applySlotChange(supabase, input, prev.preview);
+  refresh();
+  if (!r.ok) return { preview, done: prev.done, error: r.message };
+  const what =
+    kind === "stop"
+      ? `המשבצת נעצרה מ־${formatDate(from)}; השיעורים הקיימים נשארו כמו שהם.`
+      : kind === "time"
+        ? `מ־${formatDate(from)} המשבצת בשעה ${time}: ${plan.retime.length} שיעורים עברו לשעה החדשה.`
+        : `מ־${formatDate(from)} המשבצת ביום ${WEEKDAYS[Number(weekdayRaw)]} בשעה ${time}: ${plan.remove.length} שיעורים ריקים הוסרו, ${plan.next?.create.length ?? 0} נוצרו.`;
+  return { message: what, done: (prev.done ?? 0) + 1 };
 }
