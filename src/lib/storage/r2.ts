@@ -128,7 +128,8 @@ export async function headObject(key: string) {
   const { client, Bucket } = s3();
   try {
     const h = await client.send(new HeadObjectCommand({ Bucket, Key: key }));
-    return { size: h.ContentLength ?? 0, contentType: h.ContentType ?? "" };
+    const contentType = (await testFault("headAsHtml")) ? "text/html" : (h.ContentType ?? "");
+    return { size: h.ContentLength ?? 0, contentType };
   } catch (e) {
     if (isNotFound(e)) return null;
     throw e;

@@ -38,3 +38,32 @@ test("write 1 — storage fails to start an upload AND removing the pending row 
   expect((await ok.json()).error).not.toContain("ניקוי");
   expect(await rowsByCaption(caption2)).toEqual([]);
 });
+
+async function uploadedPending(request: Parameters<Parameters<typeof test>[2]>[0]["request"], lessonId: string, caption: string) {
+  const { PNG } = await import("./support/media");
+  const start = await request.post("/api/media/uploads", { headers: json, data: { owner: { kind: "lesson", id: lessonId }, contentType: "image/png", caption } });
+  const { mediaId, uploadUrl } = await start.json();
+  expect((await fetch(uploadUrl, { method: "PUT", body: PNG, headers: { "content-type": "image/png" } })).status).toBe(200);
+  const { data } = await (await db()).from("media_items").select("storage_key").eq("id", mediaId).single();
+  return { mediaId: mediaId as string, key: data!.storage_key as string };
+}
+
+test("write 2 — a non-media upload whose row deletion fails: reported; the object is still removed", async ({ request }, info) => {
+  const { objectExists } = await import("./support/r2");
+  const lessonId = await newLesson(`כתיבה2 ${info.project.name}`);
+  const caption = `${TAG} כתיבה2 ${info.project.name}`;
+  const a = await uploadedPending(request, lessonId, caption);
+  const res = await request.post(`/api/media/uploads/${a.mediaId}/complete`, { headers: { ...json, "x-test-fault": "headAsHtml,mediaRowDelete" }, data: {} });
+  expect(res.status()).toBe(500);
+  expect((await res.json()).error).toContain("מחיקת הפריט נכשלה");
+  expect(await objectExists(a.key)).toBe(false);
+  expect(await rowsByCaption(caption)).toHaveLength(1);
+
+  // Control: the row deletion works → 415, nothing left.
+  const caption2 = `${caption} ביקורת`;
+  const b = await uploadedPending(request, lessonId, caption2);
+  const ok = await request.post(`/api/media/uploads/${b.mediaId}/complete`, { headers: { ...json, "x-test-fault": "headAsHtml" }, data: {} });
+  expect(ok.status()).toBe(415);
+  expect(await objectExists(b.key)).toBe(false);
+  expect(await rowsByCaption(caption2)).toEqual([]);
+});

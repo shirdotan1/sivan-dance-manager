@@ -175,8 +175,14 @@ export async function completeUpload(mediaId: string, input: { uploadId?: unknow
   const head = await headObject(row.storage_key);
   if (!head) return fail(409, "הקובץ לא הגיע לאחסון. כדאי לנסות שוב.");
   if (!isMediaContentType(head.contentType)) {
-    await deleteObject(row.storage_key);
-    await supabase.from("media_items").delete().eq("id", row.id);
+    // Not a photo or video: remove the object, then the row — each checked and reported.
+    try {
+      await deleteObject(row.storage_key);
+    } catch {
+      return fail(502, "הקובץ שהועלה אינו תמונה או סרטון, ומחיקתו מהאחסון נכשלה. כדאי לנסות שוב.");
+    }
+    const cleanupError = await deleteMediaRow(supabase, row.id);
+    if (cleanupError) return fail(500, "הקובץ שהועלה אינו תמונה או סרטון והוסר מהאחסון, אבל מחיקת הפריט נכשלה. כדאי לנסות שוב.");
     return fail(415, "אפשר להעלות רק תמונות וסרטונים.");
   }
   const { data: done, error } = await supabase
