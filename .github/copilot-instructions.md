@@ -28,6 +28,7 @@ The migration files are the source of truth for database state; schema.sql is on
 11. The design is locked: warm ivory background, deep plum primary, burgundy primary button, coral as accent only — never white text on coral. Flag palette changes; they are not decided in review.
 12. Hebrew UI is RTL; English names and titles are bidi-isolated so they cannot scramble a Hebrew line. Interactive targets on lesson and student actions are at least 44px.
 13. Strict TypeScript: flag every `any`.
+14. Occurrence creation is anchored to wall-clock time in Asia/Jerusalem: a slot's lessons keep their local time (e.g. 18:00) on both sides of a daylight-saving change, and every generated date falls on the slot's weekday. A series that crosses a DST transition (late March, late October) must be covered by a test; flag date math that goes through UTC timestamps or the server's time zone.
 
 ## Output style
 Lead with the verdict: approve / approve with fixes / block, and why.
