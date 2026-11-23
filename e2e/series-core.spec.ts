@@ -191,7 +191,7 @@ test("a candidate moved between the read and the update is not adopted; the date
 
 test("creation: a one-off cancelled between the preview and the apply is not adopted — refused and fully rolled back", async () => {
   const sb = await db();
-  const time = `${TEST_CORE_HOUR}:05`;
+  const time = `${TEST_CORE_HOUR}:08`; // a minute no other spec uses in the 06 hour
   const date = addDays(todayIL(), 19);
   const input = { spaceId: SPACE, weekday: weekdayOf(date), time, startsOn: todayIL(), groupId: null };
   const { data: l } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} בוטל-באמצע` }).select("id").single();
