@@ -1,11 +1,13 @@
 import type { Page } from "@playwright/test";
+import { FAULT_PORT } from "../playwright.config";
 import { TEST_CORE_HOUR, db, recordSeries } from "./support/env";
-import { expect, go, test, vis } from "./support/fixtures";
+import { expect, go, main, test, vis } from "./support/fixtures";
 
 /**
  * Prerender round: a page render that is not a real request (a link's
  * prefetch) must never run the slot renewal, and must never carry a false
- * "renewal failed" alert into the page it prefetches.
+ * "renewal failed" alert into the page it prefetches. A renewal failure on a
+ * real view of the calendar is shown on the calendar, as on the space page.
  * (The server logs of the whole run are checked for prerender errors in
  * e2e/global-teardown.ts.)
  */
@@ -60,4 +62,31 @@ test("space page reached through a prefetched link: no false renewal alert", asy
   await expect(slots).toBeVisible();
   await page.waitForLoadState("networkidle");
   await expect(slots.getByRole("alert")).toHaveCount(0);
+});
+
+test("calendar reached through a prefetched link: no false renewal alert", async ({ page }) => {
+  const prefetched = pagePrefetched(page, "/calendar");
+  await go(page, "/materials");
+  await prefetched;
+  await vis(page.locator('a[href="/calendar"]')).first().click();
+  await page.waitForURL("**/calendar");
+  await expect(vis(page.getByRole("heading", { level: 1, name: "לוח שנה" }))).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(main(page).getByRole("alert")).toHaveCount(0);
+});
+
+test("calendar control — no renewal alert on a real view", async ({ page }) => {
+  await go(page, "/calendar");
+  await expect(vis(page.getByRole("heading", { level: 1, name: "לוח שנה" }))).toBeVisible();
+  await expect(main(page).getByRole("alert")).toHaveCount(0);
+});
+
+/** PM ruling: a renewal failure on the calendar is shown on the calendar, not only logged. */
+test.describe("renewal failure on the calendar", () => {
+  test.use({ baseURL: `http://localhost:${FAULT_PORT}`, extraHTTPHeaders: { "x-test-fault": "renewal" } });
+  test("is shown on the page; the month still renders", async ({ page }) => {
+    await go(page, "/calendar");
+    await expect(main(page).getByRole("alert")).toContainText("חידוש השיעורים של המשבצות נכשל כרגע");
+    await expect(vis(page.locator("table.calendar"))).toBeVisible();
+  });
 });
