@@ -11,6 +11,9 @@ const OFFSETS = "e2e/.state/server-log-offsets.json";
 /** Errors Next logs when a render that is not a request reads the clock or fetches. */
 const PRERENDER_ERROR = /encountered the unstable value|rejects when the prerender is complete/;
 
+/** The lines of a server log that are prerender errors. */
+export const prerenderErrors = (text: string) => text.split("\n").filter((l) => PRERENDER_ERROR.test(l));
+
 const sizeOf = (file: string) => (fs.existsSync(file) ? fs.statSync(file).size : 0);
 
 export function markServerLogs() {
@@ -31,8 +34,8 @@ export function checkServerLogs() {
       console.warn(`SERVER LOG CHECK NOT RUN for ${file}: no log (a server started outside the suite was reused).`);
       continue;
     }
-    const lines = fs.readFileSync(file).subarray(offsets[file] ?? 0).toString("utf8").split("\n");
-    found.push(...lines.filter((l) => PRERENDER_ERROR.test(l)).map((l) => `${file}: ${l.trim()}`));
+    const text = fs.readFileSync(file).subarray(offsets[file] ?? 0).toString("utf8");
+    found.push(...prerenderErrors(text).map((l) => `${file}: ${l.trim()}`));
   }
   if (found.length) {
     throw new Error(`Prerender errors in the server logs (${found.length}):\n${[...new Set(found)].slice(0, 10).join("\n")}`);
