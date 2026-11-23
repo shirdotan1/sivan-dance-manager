@@ -25,6 +25,8 @@ export const metadata: Metadata = { title: "לוח שנה" };
  */
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const { month: monthParam, day: dayParam } = await searchParams;
+  // Request-time from here on: requireUser waits for a real request, so "today" is never prerendered.
+  const { supabase } = await requireUser();
   const today = todayIso();
   const month = isYearMonth(monthParam) ? monthParam : isPlainDate(dayParam) ? dayParam.slice(0, 7) : today.slice(0, 7);
   const weeks = monthWeeks(month);
@@ -34,7 +36,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const selected = isPlainDate(dayParam) && dayParam.slice(0, 7) === month ? dayParam : today.startsWith(month) ? today : first;
 
   // Weekly slots: fill the next 8 weeks before showing the month (failure must not hide the calendar).
-  const { supabase } = await requireUser();
   await renewSeries(supabase)
     .then((r) => r.conflicts.length && console.warn("series renewal skipped conflicting dates", r.conflicts))
     .catch((e) => console.error("series renewal failed", e));
