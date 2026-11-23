@@ -18,13 +18,15 @@ interface ParticipantsFieldProps {
   pool: Student[];
   groups?: Group[];
   initialIds: string[];
+  /** When set (e.g. a cancelled lesson), adding is hidden and this is shown; removing still works. */
+  lockedReason?: string;
 }
 
 /**
  * Participants inside the lesson form (no nested forms): insert a group,
  * add from the pool, type a new student. Submitted as JSON in one hidden input.
  */
-export function ParticipantsField({ pool, groups = [], initialIds, error }: ParticipantsFieldProps) {
+export function ParticipantsField({ pool, groups = [], initialIds, error, lockedReason }: ParticipantsFieldProps) {
   const id = useId();
   const [entries, setEntries] = useState<ParticipantEntry[]>(() => initialIds.map((sid) => ({ id: sid })));
   const [status, setStatus] = useState("");
@@ -123,73 +125,79 @@ export function ParticipantsField({ pool, groups = [], initialIds, error }: Part
         </ul>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {groups.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <label htmlFor={`${id}-group`} className="font-medium">
-              קבוצה
+      {lockedReason ? (
+        <p className="rounded-2xl bg-danger-soft p-3 text-sm font-medium">{lockedReason}</p>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {groups.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <label htmlFor={`${id}-group`} className="font-medium">
+                  קבוצה
+                </label>
+                <div className="flex gap-2">
+                  <select ref={groupRef} id={`${id}-group`} className="min-w-0 flex-1">
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.studentIds.length})
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn btn-primary" onClick={addGroup}>
+                    הכנסת קבוצה
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {available.length === 0 ? (
+              <p className="self-end text-sm text-muted">כל התלמידות במאגר כבר ברשימה.</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label htmlFor={`${id}-student`} className="font-medium">
+                  תלמידה מהמאגר
+                </label>
+                <div className="flex gap-2">
+                  <select ref={studentRef} id={`${id}-student`} className="min-w-0 flex-1">
+                    {available.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn btn-secondary btn-compact" onClick={addFromPool}>
+                    הוספה
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-1">
+            <label htmlFor={`${id}-new`} className="font-medium">
+              תלמידה חדשה (לא במאגר)
             </label>
+            <span id={`${id}-new-hint`} className="text-sm text-muted">
+              תישמר גם במאגר של המרחב.
+            </span>
             <div className="flex gap-2">
-              <select ref={groupRef} id={`${id}-group`} className="min-w-0 flex-1">
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.studentIds.length})
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn btn-primary" onClick={addGroup}>
-                הכנסת קבוצה
+              <input
+                ref={newNameRef}
+                id={`${id}-new`}
+                dir="auto"
+                autoComplete="off"
+                enterKeyHint="done"
+                aria-describedby={`${id}-new-hint`}
+                className="min-w-0 flex-1"
+                onKeyDown={onNewNameKey}
+              />
+              <button type="button" className="btn btn-secondary btn-compact" onClick={addNew}>
+                הוספה<span className="visually-hidden"> של תלמידה חדשה</span>
               </button>
             </div>
           </div>
-        )}
-
-        {available.length === 0 ? (
-          <p className="self-end text-sm text-muted">כל התלמידות במאגר כבר ברשימה.</p>
-        ) : (
-          <div className="flex flex-col gap-1">
-            <label htmlFor={`${id}-student`} className="font-medium">
-              תלמידה מהמאגר
-            </label>
-            <div className="flex gap-2">
-              <select ref={studentRef} id={`${id}-student`} className="min-w-0 flex-1">
-                {available.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn btn-secondary btn-compact" onClick={addFromPool}>
-                הוספה
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 flex flex-col gap-1">
-        <label htmlFor={`${id}-new`} className="font-medium">
-          תלמידה חדשה (לא במאגר)
-        </label>
-        <span id={`${id}-new-hint`} className="text-sm text-muted">
-          תישמר גם במאגר של המרחב.
-        </span>
-        <div className="flex gap-2">
-          <input
-            ref={newNameRef}
-            id={`${id}-new`}
-            dir="auto"
-            autoComplete="off"
-            enterKeyHint="done"
-            aria-describedby={`${id}-new-hint`}
-            className="min-w-0 flex-1"
-            onKeyDown={onNewNameKey}
-          />
-          <button type="button" className="btn btn-secondary btn-compact" onClick={addNew}>
-            הוספה<span className="visually-hidden"> של תלמידה חדשה</span>
-          </button>
-        </div>
-      </div>
+        </>
+      )}
 
       <p role="status" className="mt-3 text-sm text-success empty:hidden">
         {status}

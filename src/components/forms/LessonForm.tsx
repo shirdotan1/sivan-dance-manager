@@ -15,6 +15,8 @@ export interface LessonDraft {
   participantIds: string[];
   materialIds: string[];
   notes: string;
+  /** A cancelled occurrence: no new participants. */
+  cancelled?: boolean;
 }
 
 interface LessonFormProps {
@@ -82,7 +84,13 @@ export function LessonForm({ action, space, bank, draft, submitLabel }: LessonFo
         </div>
       </fieldset>
 
-      <ParticipantsField pool={space.students} groups={space.groups} initialIds={draft.participantIds} error={err.participants} />
+      <ParticipantsField
+        pool={space.students}
+        groups={space.groups}
+        initialIds={draft.participantIds}
+        error={err.participants}
+        lockedReason={draft.cancelled ? "השיעור בוטל — אי אפשר להוסיף לו משתתפות. אפשר להחזיר אותו בעמוד השיעור." : undefined}
+      />
       <MaterialsField bank={bank} initialIds={draft.materialIds} legend="חומרים בשיעור" error={err.materials} />
 
       <fieldset className="card card-section">

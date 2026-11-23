@@ -8,6 +8,7 @@ const TABLES = [
   "groups",
   "group_members",
   "songs",
+  "lesson_series",
   "lessons",
   "lesson_participants",
   "lesson_songs",

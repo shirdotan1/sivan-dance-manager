@@ -2,6 +2,7 @@ import "server-only";
 import { requireUser } from "@/lib/supabase/server";
 import { connection } from "next/server";
 import { addDays, nowTimeIsrael, shortTime, todayIso } from "@/lib/format";
+import { nowInIsrael, tookPlace } from "@/lib/lessonTime";
 import { NEUTRAL_COLOR } from "@/lib/palette";
 import type {
   Project,
@@ -28,7 +29,9 @@ import type {
 
 /** A link row to a student, with the student's creation time for pool ordering. */
 interface StudentRef { student_id: string; students: { created_at: string } | null }
-interface StudentRow { id: string; name: string; phone: string; archived_at: string | null; created_at: string }
+interface StudentRow {
+  id: string; name: string; phone: string; parent_name: string; parent_phone: string; archived_at: string | null; created_at: string;
+}
 interface GroupRow { id: string; name: string; color: string; created_at: string; group_members: StudentRef[] }
 interface SpaceRow {
   id: string; name: string; kind: "studio" | "private"; description: string;
@@ -38,6 +41,8 @@ interface MediaRow { id: string; kind: "photo" | "video"; caption: string; posit
 interface SongLinkRow { song_id: string; position: number }
 interface LessonRow {
   id: string; space_id: string; group_id: string | null; date: string; time: string; notes: string;
+  series_id: string | null; series_date: string | null; cancelled_at: string | null;
+  date_overridden: boolean; time_overridden: boolean;
   lesson_participants: StudentRef[]; lesson_songs: SongLinkRow[]; media_items: MediaRow[];
 }
 interface SessionRow {
@@ -58,8 +63,8 @@ interface MaterialRow {
 // ---------- Selects ----------
 
 const STUDENT_REF = "student_id, students(created_at)";
-const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, archived_at, created_at), groups(id, name, color, created_at, group_members(${STUDENT_REF}))`;
-const LESSON_SELECT = `id, space_id, group_id, date, time, notes, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
+const SPACE_SELECT = `id, name, kind, description, students(id, name, phone, parent_name, parent_phone, archived_at, created_at), groups(id, name, color, created_at, group_members(${STUDENT_REF}))`;
+const LESSON_SELECT = `id, space_id, group_id, date, time, notes, series_id, series_date, cancelled_at, date_overridden, time_overridden, lesson_participants(${STUDENT_REF}), lesson_songs(song_id, position), media_items(id, kind, caption, position)`;
 const SESSION_SELECT = `id, date, time, notes, session_payments(${STUDENT_REF}, amount, paid), session_songs(song_id, position), media_items(id, kind, caption, position)`;
 const PROJECT_SELECT = `id, name, type, color, main_song_id, created_at, project_participants(${STUDENT_REF}), sessions(${SESSION_SELECT})`;
 const MATERIAL_SELECT = "id, kind, title, artist, style, link, note, title_lang, artist_lang";
@@ -79,7 +84,14 @@ const byDateDesc = (a: { date: string; time: string }, b: { date: string; time: 
   a.date + a.time < b.date + b.time ? 1 : a.date + a.time > b.date + b.time ? -1 : 0;
 
 function mapStudent(r: StudentRow): Student {
-  return { id: r.id, name: r.name, phone: r.phone, ...(r.archived_at ? { archived: true } : {}) };
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    ...(r.parent_name ? { parentName: r.parent_name } : {}),
+    ...(r.parent_phone ? { parentPhone: r.parent_phone } : {}),
+    ...(r.archived_at ? { archived: true } : {}),
+  };
 }
 
 function mapGroup(r: GroupRow): Group {
@@ -109,6 +121,10 @@ function mapLesson(r: LessonRow): Lesson {
     materialIds: [...r.lesson_songs].sort(byPosition).map((s) => s.song_id),
     notes: r.notes,
     media: mapMedia(r.media_items),
+    ...(r.series_id ? { seriesId: r.series_id, seriesDate: r.series_date! } : {}),
+    ...(r.cancelled_at ? { cancelled: true } : {}),
+    ...(r.date_overridden ? { dateOverridden: true } : {}),
+    ...(r.time_overridden ? { timeOverridden: true } : {}),
   };
 }
 
@@ -177,13 +193,16 @@ export async function getLessonsForSpace(spaceId: string): Promise<Lesson[]> {
   return (data as unknown as LessonRow[]).map(mapLesson).sort(byDateDesc);
 }
 
-/** Lesson counts per space (home page). */
+/** Lessons that took place, per space (home page) — the shared rule in src/lib/lessonTime.ts. */
 export async function getLessonCounts(): Promise<Record<string, number>> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.from("lessons").select("space_id");
+  const now = nowInIsrael();
+  const { data, error } = await supabase.from("lessons").select("space_id, date, time, cancelled_at").lte("date", now.date);
   if (error) fail("lesson counts", error);
   const counts: Record<string, number> = {};
-  for (const r of data as { space_id: string }[]) counts[r.space_id] = (counts[r.space_id] ?? 0) + 1;
+  for (const r of data as { space_id: string; date: string; time: string; cancelled_at: string | null }[]) {
+    if (tookPlace({ date: r.date, time: r.time, cancelled: Boolean(r.cancelled_at) }, now)) counts[r.space_id] = (counts[r.space_id] ?? 0) + 1;
+  }
   return counts;
 }
 
@@ -248,6 +267,8 @@ export interface CalendarEvent {
   context: string;
   color: string;
   href: string;
+  /** A cancelled lesson occurrence (shown as cancelled, never "next up"). */
+  cancelled?: boolean;
 }
 
 export interface LegendItem {
@@ -261,7 +282,7 @@ export interface LegendItem {
 export async function getCalendarEvents(first: string, last: string): Promise<CalendarEvent[]> {
   const { supabase } = await requireUser();
   const [lessons, sessions, spaces] = await Promise.all([
-    supabase.from("lessons").select("id, space_id, date, time, groups(name, color)").gte("date", first).lte("date", last),
+    supabase.from("lessons").select("id, space_id, date, time, cancelled_at, groups(name, color)").gte("date", first).lte("date", last),
     supabase.from("sessions").select("id, date, time, projects(id, name, color)").gte("date", first).lte("date", last),
     supabase.from("spaces").select("id, name"),
   ]);
@@ -269,7 +290,10 @@ export async function getCalendarEvents(first: string, last: string): Promise<Ca
   if (sessions.error) fail("calendar sessions", sessions.error);
   const spaceName = new Map((spaces.data ?? []).map((s) => [s.id as string, s.name as string]));
 
-  type LessonRow = { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null };
+  type LessonRow = {
+    id: string; space_id: string; date: string; time: string; cancelled_at: string | null;
+    groups: { name: string; color: string } | null;
+  };
   type SessionRow = { id: string; date: string; time: string; projects: { id: string; name: string; color: string } | null };
 
   const events: CalendarEvent[] = [
@@ -282,6 +306,7 @@ export async function getCalendarEvents(first: string, last: string): Promise<Ca
       context: spaceName.get(l.space_id) ?? "",
       color: l.groups?.color ?? NEUTRAL_COLOR,
       href: `/spaces/${l.space_id}/lessons/${l.id}`,
+      ...(l.cancelled_at ? { cancelled: true } : {}),
     })),
     ...(sessions.data as unknown as SessionRow[])
       .filter((s) => s.projects)
@@ -389,7 +414,7 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
   const { supabase } = await requireUser();
   const { data: s, error } = await supabase
     .from("students")
-    .select("id, name, phone, archived_at, space_id, spaces(name, kind)")
+    .select("id, name, phone, parent_name, parent_phone, archived_at, space_id, spaces(name, kind)")
     .eq("id", studentId)
     .maybeSingle();
   if (error) fail("student", error);
@@ -398,14 +423,16 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
 
   const [groups, lessons, projects, payments] = await Promise.all([
     supabase.from("group_members").select("groups(id, name, color)").eq("student_id", studentId),
-    supabase.from("lesson_participants").select("lessons(id, space_id, date, time, groups(name, color))").eq("student_id", studentId),
+    supabase.from("lesson_participants").select("lessons(id, space_id, date, time, cancelled_at, groups(name, color))").eq("student_id", studentId),
     supabase.from("project_participants").select("projects(id, name, color, sessions(id, date, time))").eq("student_id", studentId),
     supabase.from("session_payments").select("session_id, amount, paid").eq("student_id", studentId),
   ]);
   for (const r of [groups, lessons, projects, payments]) if (r.error) fail("student card", r.error);
 
   type G = { groups: { id: string; name: string; color: string } | null };
-  type L = { lessons: { id: string; space_id: string; date: string; time: string; groups: { name: string; color: string } | null } | null };
+  type L = {
+    lessons: { id: string; space_id: string; date: string; time: string; cancelled_at: string | null; groups: { name: string; color: string } | null } | null;
+  };
   type P = { projects: { id: string; name: string; color: string; sessions: { id: string; date: string; time: string }[] } | null };
   const payBySession = new Map(
     (payments.data as { session_id: string; amount: number; paid: boolean }[]).map((p) => [p.session_id, { amount: p.amount, paid: p.paid }]),
@@ -418,6 +445,8 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
       id: s.id,
       name: s.name,
       phone: s.phone,
+      ...(s.parent_name ? { parentName: s.parent_name as string } : {}),
+      ...(s.parent_phone ? { parentPhone: s.parent_phone as string } : {}),
       ...(s.archived_at ? { archived: true } : {}),
       spaceId: s.space_id,
       spaceName: space?.name ?? "",
@@ -433,6 +462,7 @@ export async function getStudentCard(studentId: string): Promise<StudentCard | u
         ...(l.groups ? { groupName: l.groups.name } : {}),
         color: l.groups?.color ?? NEUTRAL_COLOR,
         href: `/spaces/${l.space_id}/lessons/${l.id}`,
+        ...(l.cancelled_at ? { cancelled: true } : {}),
       }))
       .sort(newestFirst),
     sessions: projectRows
@@ -510,5 +540,5 @@ export async function getNextEvent(): Promise<CalendarEvent | undefined> {
   const today = todayIso();
   const now = nowTimeIsrael();
   const events = await getCalendarEvents(today, addDays(today, 120));
-  return events.find((e) => e.date > today || e.time >= now);
+  return events.find((e) => !e.cancelled && (e.date > today || e.time >= now));
 }

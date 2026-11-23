@@ -19,6 +19,7 @@ drop table if exists public.projects cascade;
 drop table if exists public.lesson_songs cascade;
 drop table if exists public.lesson_participants cascade;
 drop table if exists public.lessons cascade;
+drop table if exists public.lesson_series cascade;
 drop table if exists public.songs cascade;
 drop table if exists public.group_members cascade;
 drop table if exists public.groups cascade;
@@ -42,6 +43,9 @@ create table public.students (
   space_id    text not null references public.spaces (id) on delete restrict,
   name        text not null check (length(btrim(name)) > 0),
   phone       text not null default '',
+  -- Parent contact (optional; migrations/004): reminder recipient only.
+  parent_name  text not null default '',
+  parent_phone text not null default '',
   archived_at timestamptz,
   created_at  timestamptz not null default now()
 );
@@ -82,6 +86,20 @@ create table public.songs (
 );
 
 -- ---------- Studio lessons ----------
+-- Weekly slots (migrations/004): each occurrence is a real lesson row.
+create table public.lesson_series (
+  id         uuid primary key default gen_random_uuid(),
+  space_id   text not null references public.spaces (id) on delete restrict,
+  group_id   uuid references public.groups (id) on delete set null,
+  weekday    smallint not null check (weekday between 0 and 6), -- 0 = Sunday
+  time       time not null,
+  starts_on  date not null,
+  stops_on   date, -- NULL = active
+  created_at timestamptz not null default now(),
+  check (stops_on is null or stops_on >= starts_on)
+);
+create index lesson_series_space_idx on public.lesson_series (space_id);
+
 create table public.lessons (
   id         uuid primary key default gen_random_uuid(),
   space_id   text not null references public.spaces (id) on delete restrict,
@@ -90,7 +108,16 @@ create table public.lessons (
   date       date not null,
   time       time not null,
   notes      text not null default '',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Series occurrence (migrations/004). series_date = the slot date this row
+  -- stands for (kept when moved by hand); unique per series = no duplicates.
+  series_id       uuid references public.lesson_series (id) on delete restrict,
+  series_date     date,
+  cancelled_at    timestamptz,
+  date_overridden boolean not null default false,
+  time_overridden boolean not null default false,
+  constraint lessons_series_occurrence_key unique (series_id, series_date),
+  constraint lessons_series_pair_check check ((series_id is null) = (series_date is null))
 );
 create index lessons_space_date_idx on public.lessons (space_id, date, time);
 create index lessons_date_idx on public.lessons (date);
@@ -190,7 +217,7 @@ declare t text;
 begin
   foreach t in array array[
     'spaces', 'students', 'groups', 'group_members', 'songs',
-    'lessons', 'lesson_participants', 'lesson_songs',
+    'lesson_series', 'lessons', 'lesson_participants', 'lesson_songs',
     'projects', 'project_participants', 'sessions', 'session_payments',
     'session_songs', 'media_items'
   ] loop

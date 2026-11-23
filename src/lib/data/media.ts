@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { getMediaAccess, isSignedIn } from "@/lib/auth/access";
+import { testFault } from "@/lib/testFaults";
 import {
   abortMultipart,
   completeMultipart,
@@ -94,6 +95,13 @@ async function accessForMedia(mediaId: string, mode: "view" | "manage") {
   return { ok: true as const, supabase: access.supabase, row, owner };
 }
 
+/** Deletes a media row; returns the error message, or null. Never discarded by callers. */
+async function deleteMediaRow(supabase: Awaited<ReturnType<typeof isSignedIn>>["supabase"], id: string): Promise<string | null> {
+  if (await testFault("mediaRowDelete")) return "Injected test fault: mediaRowDelete";
+  const { error } = await supabase.from("media_items").delete().eq("id", id);
+  return error ? error.message : null;
+}
+
 // ---------- Upload ----------
 
 export async function createUpload(input: { owner?: unknown; contentType?: unknown; caption?: unknown; multipart?: unknown }) {
@@ -124,7 +132,11 @@ export async function createUpload(input: { owner?: unknown; contentType?: unkno
     }
     return { ok: true as const, mediaId: row.id as string, uploadUrl: await signUpload(key, contentType) };
   } catch {
-    await supabase.from("media_items").delete().eq("id", row.id); // no pending row without a started upload
+    // No pending row without a started upload — and if removing it fails too, say so.
+    const cleanupError = await deleteMediaRow(supabase, row.id);
+    if (cleanupError) {
+      return fail(502, "האחסון לא זמין כרגע, וגם ניקוי הפריט הממתין נכשל (הוא יוסר אוטומטית אחרי 24 שעות). כדאי לנסות שוב.");
+    }
     return fail(502, "האחסון לא זמין כרגע. כדאי לנסות שוב.");
   }
 }
@@ -163,8 +175,14 @@ export async function completeUpload(mediaId: string, input: { uploadId?: unknow
   const head = await headObject(row.storage_key);
   if (!head) return fail(409, "הקובץ לא הגיע לאחסון. כדאי לנסות שוב.");
   if (!isMediaContentType(head.contentType)) {
-    await deleteObject(row.storage_key);
-    await supabase.from("media_items").delete().eq("id", row.id);
+    // Not a photo or video: remove the object, then the row — each checked and reported.
+    try {
+      await deleteObject(row.storage_key);
+    } catch {
+      return fail(502, "הקובץ שהועלה אינו תמונה או סרטון, ומחיקתו מהאחסון נכשלה. כדאי לנסות שוב.");
+    }
+    const cleanupError = await deleteMediaRow(supabase, row.id);
+    if (cleanupError) return fail(500, "הקובץ שהועלה אינו תמונה או סרטון והוסר מהאחסון, אבל מחיקת הפריט נכשלה. כדאי לנסות שוב.");
     return fail(415, "אפשר להעלות רק תמונות וסרטונים.");
   }
   const { data: done, error } = await supabase
@@ -183,10 +201,15 @@ export async function abortUpload(mediaId: string, input: { uploadId?: unknown }
   const { row, supabase } = a;
   if (row.uploaded_at) return fail(409, "ההעלאה כבר הסתיימה; אפשר למחוק את הפריט.");
   if (row.storage_key) {
-    if (typeof input.uploadId === "string") await abortMultipart(row.storage_key, input.uploadId);
-    await deleteObject(row.storage_key);
+    try {
+      if (typeof input.uploadId === "string") await abortMultipart(row.storage_key, input.uploadId);
+      await deleteObject(row.storage_key);
+    } catch {
+      return fail(502, "ביטול ההעלאה לא הושלם: האחסון לא זמין כרגע. כדאי לנסות שוב.");
+    }
   }
-  await supabase.from("media_items").delete().eq("id", row.id);
+  const cleanupError = await deleteMediaRow(supabase, row.id);
+  if (cleanupError) return fail(500, "ביטול ההעלאה לא הושלם: מחיקת הפריט הממתין נכשלה (הוא יוסר אוטומטית אחרי 24 שעות).");
   return { ok: true as const };
 }
 

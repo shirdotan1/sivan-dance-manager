@@ -4,6 +4,8 @@ export interface ActionState {
   message?: string;
   /** Shown as an error (role="alert"). */
   error?: string;
+  /** Saved, but worth knowing (non-blocking, e.g. a phone WhatsApp won't understand). */
+  warning?: string;
   /** Increments on success so forms can reset (used as a React key). */
   done?: number;
   /** Per-field errors (field name → message), shown next to the field. */

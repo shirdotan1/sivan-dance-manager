@@ -18,4 +18,6 @@ test("backup: the page and the exported file say media files are not included", 
   const backup = await res.json();
   expect(backup.note).toContain("אינם כלולים");
   expect(backup.tables.media_items.length).toBeGreaterThan(0);
+  // Weekly slots are part of the backup (migration 004).
+  expect(Object.keys(backup.tables)).toContain("lesson_series");
 });

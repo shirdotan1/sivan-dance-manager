@@ -13,6 +13,7 @@ import {
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { testFault } from "@/lib/testFaults";
 
 /**
  * Cloudflare R2 (S3 API) for media files. Server-only: the keys never reach
@@ -83,6 +84,7 @@ export async function signUpload(key: string, contentType: string) {
 }
 
 export async function startMultipart(key: string, contentType: string) {
+  if (await testFault("startMultipart")) throw new Error("Injected test fault: startMultipart");
   const { client, Bucket } = s3();
   const out = await client.send(new CreateMultipartUploadCommand({ Bucket, Key: key, ContentType: contentType }));
   if (!out.UploadId) throw new Error("R2 did not return an upload id.");
@@ -126,7 +128,8 @@ export async function headObject(key: string) {
   const { client, Bucket } = s3();
   try {
     const h = await client.send(new HeadObjectCommand({ Bucket, Key: key }));
-    return { size: h.ContentLength ?? 0, contentType: h.ContentType ?? "" };
+    const contentType = (await testFault("headAsHtml")) ? "text/html" : (h.ContentType ?? "");
+    return { size: h.ContentLength ?? 0, contentType };
   } catch (e) {
     if (isNotFound(e)) return null;
     throw e;
@@ -139,19 +142,9 @@ export async function deleteObject(key: string) {
   await client.send(new DeleteObjectCommand({ Bucket, Key: key }));
 }
 
-/**
- * E2E fault injection: lets the tests prove "storage failed → nothing is
- * deleted". Honored ONLY when MEDIA_TEST_FAULT names the operation AND the
- * bucket is a test bucket; production never sets it.
- */
-function injectedFault(operation: "deletePrefix") {
-  const fault = process.env.MEDIA_TEST_FAULT;
-  if (fault === operation && /test/i.test(process.env.R2_BUCKET_NAME ?? "")) throw new Error(`Injected test fault: ${operation}`);
-}
-
 /** Deletes every object under a prefix (a whole lesson or session). Returns how many. */
 export async function deletePrefix(prefix: string) {
-  injectedFault("deletePrefix");
+  if (await testFault("deletePrefix")) throw new Error("Injected test fault: deletePrefix");
   const { client, Bucket } = s3();
   let deleted = 0;
   let ContinuationToken: string | undefined;

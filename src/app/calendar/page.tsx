@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { renewSeries } from "@/lib/data/series";
+import { requireUser } from "@/lib/supabase/server";
 import { getCalendarEvents, getCalendarLegend, getProjects, getSpaces, type CalendarEvent } from "@/lib/data/queries";
 import {
   WEEKDAYS,
@@ -31,6 +33,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const { first } = monthRange(month);
   const selected = isPlainDate(dayParam) && dayParam.slice(0, 7) === month ? dayParam : today.startsWith(month) ? today : first;
 
+  // Weekly slots: fill the next 8 weeks before showing the month (failure must not hide the calendar).
+  const { supabase } = await requireUser();
+  await renewSeries(supabase)
+    .then((r) => r.conflicts.length && console.warn("series renewal skipped conflicting dates", r.conflicts))
+    .catch((e) => console.error("series renewal failed", e));
   const [events, legend, spaces, projects] = await Promise.all([
     getCalendarEvents(gridFirst, gridLast),
     getCalendarLegend(),
@@ -88,7 +95,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                 const list = byDay.get(cell.date) ?? [];
                 const isSelected = cell.date === selected;
                 const isToday = cell.date === today;
-                const names = list.map((e) => e.label).join(", ");
+                const names = list.map((e) => (e.cancelled ? `${e.label} (מבוטל)` : e.label)).join(", ");
                 return (
                   <td key={cell.date} data-out={!cell.inMonth || undefined} data-selected={isSelected || undefined}>
                     <Link
@@ -111,13 +118,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                           {/* Phones: dots + count. Wider: dot + short name per event. */}
                           <span className="flex flex-wrap justify-center gap-0.5 sm:hidden">
                             {list.slice(0, 3).map((e) => (
-                              <span key={e.id} className="calendar-dot" style={{ background: e.color }} />
+                              <span key={e.id} className={`calendar-dot ${e.cancelled ? "opacity-40" : ""}`} style={{ background: e.color }} />
                             ))}
                           </span>
                           <span className="text-xs sm:hidden">{list.length}</span>
                           <span className="hidden w-full min-w-0 flex-col gap-0.5 sm:flex">
                             {list.slice(0, 3).map((e) => (
-                              <span key={e.id} className="calendar-chip">
+                              <span key={e.id} className={`calendar-chip ${e.cancelled ? "line-through opacity-60" : ""}`}>
                                 <span className="calendar-dot" style={{ background: e.color }} />
                                 <span className="min-w-0 truncate">{e.label}</span>
                               </span>
@@ -148,9 +155,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                 <Link href={e.href} className="flex items-center gap-3 py-2 no-underline hover:bg-brand-soft">
                   <span aria-hidden="true" className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: e.color }} />
                   <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">{e.label}</span>
+                    <span className={`block font-semibold ${e.cancelled ? "line-through" : ""}`}>{e.label}</span>
                     <span className="text-sm text-muted">
                       {e.kind === "lesson" ? "שיעור" : "מפגש"} · {e.context}
+                      {e.cancelled && <span className="font-medium text-danger"> · מבוטל</span>}
                     </span>
                   </span>
                   <time dateTime={`${e.date}T${e.time}`} className="font-medium" dir="ltr">

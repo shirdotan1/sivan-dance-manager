@@ -6,11 +6,16 @@ import { MaterialTitle } from "@/components/materials/MaterialText";
 import { GroupCard } from "@/components/GroupCard";
 import { GroupForm } from "@/components/GroupForm";
 import { PoolManager } from "@/components/PoolManager";
+import { SeriesChangeForm, SeriesForm } from "@/components/SeriesManager";
 import { createGroup } from "@/lib/actions/groups";
 import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/data/queries";
-import { formatCurrency, formatDate, projectTypeLabel } from "@/lib/format";
+import { getSeriesForSpace, renewSeries, slotDates, type Conflict } from "@/lib/data/series";
+import { hasStarted, nowInIsrael, tookPlace } from "@/lib/lessonTime";
+import { requireUser } from "@/lib/supabase/server";
+import { testFault } from "@/lib/testFaults";
+import { addDays, formatCurrency, formatDate, projectTypeLabel, todayIso, WEEKDAYS } from "@/lib/format";
 import { activeStudents, studentsByIds } from "@/lib/lookup";
-import type { PrivateSpace, StudioSpace } from "@/lib/types";
+import type { Lesson, LessonSeries, PrivateSpace, StudioSpace } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/spaces/[spaceId]">): Promise<Metadata> {
   const { spaceId } = await params;
@@ -34,8 +39,31 @@ export default async function SpacePage({ params }: PageProps<"/spaces/[spaceId]
 }
 
 async function StudioSpaceView({ space }: { space: StudioSpace }) {
-  const spaceLessons = await getLessonsForSpace(space.id);
+  const { supabase } = await requireUser();
+  // Weekly slots: fill the next 8 weeks before showing the lessons. A failure
+  // must not hide the page — the next view renews again.
+  // A failure is shown in the slots section (and logged); the page still renders.
+  const outcome = await (async () => {
+    if (await testFault("renewal")) throw new Error("Injected test fault: renewal");
+    return { result: await renewSeries(supabase, [space.id]), error: null };
+  })().catch((e: unknown) => {
+    console.error("series renewal failed", e);
+    return { result: null, error: e instanceof Error ? e.message : String(e) };
+  });
+  const renewal = outcome.result;
+  const renewalError = outcome.error;
+  const [spaceLessons, series] = await Promise.all([getLessonsForSpace(space.id), getSeriesForSpace(supabase, space.id)]);
   const pool = activeStudents(space.students);
+  const today = todayIso();
+  // The shared rule (src/lib/lessonTime.ts): a lesson has "happened" once its
+  // start (date + time, Israel) passed; it counts if it also isn't cancelled.
+  const now = nowInIsrael();
+  // Newest first from the query: upcoming (not started) nearest first, then past.
+  const upcoming = spaceLessons.filter((l) => !hasStarted(l, now)).reverse();
+  const past = spaceLessons.filter((l) => hasStarted(l, now));
+  const held = past.filter((l) => tookPlace(l, now)).length;
+  const groupName = (id?: string) => space.groups.find((g) => g.id === id)?.name;
+  const seriesTime = (id: string) => series.find((x) => x.id === id)?.time;
 
   return (
     <>
@@ -63,36 +91,80 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
         </details>
       </section>
 
+      <section aria-labelledby="series-heading" className="mb-10">
+        <h2 id="series-heading" className="mb-3">
+          משבצות שבועיות ({series.filter((x) => !x.stopsOn || x.stopsOn > today).length})
+        </h2>
+        {renewalError && (
+          <p role="alert" className="mb-4 rounded-2xl bg-danger-soft p-3 text-sm font-medium">
+            חידוש השיעורים של המשבצות נכשל כרגע, ולכן ייתכן ששיעורים קרובים חסרים ברשימה. השיעורים שכבר קיימים מוצגים; פתיחה מחדש של
+            הדף תנסה שוב.
+            <span className="block font-normal text-muted" dir="auto">
+              ({renewalError})
+            </span>
+          </p>
+        )}
+        {series.length === 0 ? (
+          <p className="empty-state mb-4">אין עדיין משבצות קבועות. משבצת יוצרת שיעורים לשמונה שבועות קדימה ומתחדשת לבד.</p>
+        ) : (
+          <ul className="mb-4 grid gap-3" role="list">
+            {series.map((s) => (
+              <SeriesItem
+                key={s.id}
+                spaceId={space.id}
+                series={s}
+                groupName={groupName(s.groupId)}
+                today={today}
+                conflicts={(renewal?.conflicts ?? []).filter((c) => c.seriesId === s.id)}
+                changed={(renewal?.changed ?? []).filter((c) => c.seriesId === s.id).map((c) => c.date)}
+              />
+            ))}
+          </ul>
+        )}
+        <details className="disclosure">
+          <summary>+ משבצת שבועית חדשה</summary>
+          <SeriesForm spaceId={space.id} groups={space.groups} today={today} />
+        </details>
+      </section>
+
       <section aria-labelledby="lessons-heading" className="mb-10">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="lessons-heading">שיעורים ({spaceLessons.length})</h2>
+          <h2 id="lessons-heading">שיעורים ({held} התקיימו)</h2>
           <Link href={`/spaces/${space.id}/lessons/new`} className="btn btn-secondary btn-compact max-sm:hidden">
             + שיעור חדש
           </Link>
         </div>
         {spaceLessons.length === 0 ? (
-          <p className="empty-state">עדיין אין שיעורים במרחב הזה. אפשר ליצור שיעור חדש.</p>
+          <p className="empty-state">עדיין אין שיעורים במרחב הזה. אפשר ליצור שיעור חדש או משבצת שבועית.</p>
         ) : (
-          <ul className="grid gap-4" role="list">
-            {spaceLessons.map((lesson) => (
-              <li key={lesson.id}>
-                <Link
-                  href={`/spaces/${space.id}/lessons/${lesson.id}`}
-                  className="card card-link flex flex-wrap items-center justify-between gap-2"
-                >
-                  <span>
-                    <span className="block font-semibold">{formatDate(lesson.date)}</span>
-                    <span className="text-sm text-muted">
-                      בשעה <time dateTime={`${lesson.date}T${lesson.time}`}>{lesson.time}</time>
-                    </span>
-                  </span>
-                  <span className="text-sm">
-                    {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} חומרים
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            <h3 id="upcoming-heading" className="mb-2 text-base">
+              קרובים ({upcoming.length})
+            </h3>
+            {upcoming.length === 0 ? (
+              <p className="empty-state mb-6">אין שיעורים קרובים.</p>
+            ) : (
+              <>
+                <LessonList spaceId={space.id} lessons={upcoming.slice(0, 4)} groupName={groupName} seriesTime={seriesTime} labelledBy="upcoming-heading" />
+                {upcoming.length > 4 && (
+                  <details className="disclosure mt-3">
+                    <summary>עוד {upcoming.length - 4} שיעורים קרובים</summary>
+                    <div className="px-4 pb-4">
+                      <LessonList spaceId={space.id} lessons={upcoming.slice(4)} groupName={groupName} seriesTime={seriesTime} />
+                    </div>
+                  </details>
+                )}
+              </>
+            )}
+            <h3 id="past-heading" className="mt-6 mb-2 text-base">
+              קודמים ({past.length})
+            </h3>
+            {past.length === 0 ? (
+              <p className="empty-state">עדיין אין שיעורים שהתקיימו.</p>
+            ) : (
+              <LessonList spaceId={space.id} lessons={past} groupName={groupName} seriesTime={seriesTime} labelledBy="past-heading" />
+            )}
+          </>
         )}
       </section>
 
@@ -191,5 +263,119 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
         </Link>
       </div>
     </>
+  );
+}
+
+function SeriesItem({
+  spaceId,
+  series,
+  groupName,
+  today,
+  conflicts,
+  changed,
+}: {
+  spaceId: string;
+  series: LessonSeries;
+  groupName?: string;
+  today: string;
+  conflicts: Conflict[];
+  /** Dates whose planned adoption was skipped: the lesson changed meanwhile. */
+  changed: string[];
+}) {
+  const stopped = Boolean(series.stopsOn && series.stopsOn <= today);
+  return (
+    <li className="card flex flex-wrap items-center justify-between gap-2">
+      <span>
+        <span className="block font-semibold">
+          כל יום {WEEKDAYS[series.weekday]} · <bdi dir="ltr">{series.time}</bdi>
+          {groupName && <span className="font-normal"> · {groupName}</span>}
+        </span>
+        <span className="text-sm text-muted">
+          החל מ־{formatDate(series.startsOn)}
+          {series.stopsOn && ` · ${stopped ? "הופסקה" : "תיפסק"} מ־${formatDate(series.stopsOn)}`}
+        </span>
+      </span>
+      {stopped && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 text-sm">הופסקה</span>}
+      {conflicts.length + changed.length > 0 && (
+        <ul className="basis-full text-sm font-medium text-danger" role="list">
+          {conflicts.map((c) => (
+            <li key={c.date}>
+              לא נוצר שיעור ב־{formatDate(c.date)}:{" "}
+              {c.kind === "ambiguous" ? "יש באותה שעה כמה שיעורים, ולא ברור לאיזה לצרף." : "באותה שעה כבר יש שיעור של משבצת אחרת."}
+            </li>
+          ))}
+          {changed.map((d) => (
+            <li key={`changed-${d}`}>השיעור של {formatDate(d)} לא צורף למשבצת: הוא השתנה בזמן החידוש. בפתיחה הבאה של הדף זה ייבדק שוב.</li>
+          ))}
+        </ul>
+      )}
+      {!stopped && (
+        <details className="disclosure basis-full">
+          <summary>שינוי המשבצת מכאן והלאה</summary>
+          <SeriesChangeForm
+            spaceId={spaceId}
+            seriesId={series.id}
+            weekday={series.weekday}
+            time={series.time}
+            today={today}
+            nextDate={slotDates(series, today, addDays(today, 7))[0] ?? today}
+          />
+        </details>
+      )}
+    </li>
+  );
+}
+
+function LessonList({
+  spaceId,
+  lessons,
+  groupName,
+  seriesTime,
+  labelledBy,
+}: {
+  spaceId: string;
+  lessons: Lesson[];
+  groupName: (id?: string) => string | undefined;
+  /** A slot's time (for the "moved" mark: the original day and time). */
+  seriesTime: (id: string) => string | undefined;
+  labelledBy?: string;
+}) {
+  return (
+    <ul className="grid gap-3" role="list" aria-labelledby={labelledBy}>
+      {lessons.map((lesson) => (
+        <li key={lesson.id}>
+          <Link
+            href={`/spaces/${spaceId}/lessons/${lesson.id}`}
+            className={`card card-link flex flex-wrap items-center justify-between gap-2 ${lesson.cancelled ? "opacity-75" : ""}`}
+          >
+            <span>
+              <span className={`block font-semibold ${lesson.cancelled ? "line-through" : ""}`}>{formatDate(lesson.date)}</span>
+              <span className="text-sm text-muted">
+                בשעה <time dateTime={`${lesson.date}T${lesson.time}`}>{lesson.time}</time>
+                {groupName(lesson.groupId) && ` · ${groupName(lesson.groupId)}`}
+              </span>
+            </span>
+            <span className="flex flex-wrap items-center gap-2 text-sm">
+              {lesson.cancelled && <span className="rounded-full bg-danger-soft px-2.5 py-0.5 font-medium">מבוטל</span>}
+              {lesson.seriesId && <span className="rounded-full bg-brand-soft px-2.5 py-0.5">משבצת שבועית</span>}
+              {lesson.seriesId && (lesson.dateOverridden || lesson.timeOverridden) && (
+                <span className="rounded-full bg-coral-soft px-2.5 py-0.5">
+                  הוזז מהמשבצת · במקור {formatDate(lesson.seriesDate!)}
+                  {seriesTime(lesson.seriesId) && (
+                    <>
+                      {" "}
+                      בשעה <bdi dir="ltr">{seriesTime(lesson.seriesId)}</bdi>
+                    </>
+                  )}
+                </span>
+              )}
+              <span>
+                {lesson.participantIds.length} משתתפות · {lesson.materialIds.length} חומרים
+              </span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
