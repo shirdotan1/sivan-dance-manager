@@ -578,7 +578,8 @@ export async function applySlotChange(
   supabase: Supabase,
   input: SlotChangeInput,
   expected: SlotChangePlan,
-  hooks?: { beforeApply?: () => Promise<void> },
+  /** Test seams: beforeApply runs after the check; failAt simulates a failed write at that step. */
+  hooks?: { beforeApply?: () => Promise<void>; failAt?: "stop" | "remove" },
 ): Promise<ChangeSlotResult> {
   const plan = await planSlotChange(supabase, input);
   if (plan.conflicts.length) return { ok: false, reason: "conflict", message: "יש התנגשויות בתאריכים שהשינוי נוגע בהם, ולכן הוא לא נשמר." };
@@ -641,6 +642,7 @@ export async function applySlotChange(
         if (e) throw new Error(e.message);
         if (data?.length !== 1) return await rollback("שיעור של המשבצת השתנה בזמן השמירה, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
       }
+      if (hooks?.failAt === "stop") throw new Error("Injected test fault: stop");
       const { error: e2 } = await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id);
       if (e2) throw new Error(e2.message);
       const { error: e3 } = await supabase.from("lesson_series").update({ stops_on: null }).eq("id", newId);
@@ -651,21 +653,36 @@ export async function applySlotChange(
     }
   }
 
-  // Day change: first the new slot, exactly as previewed (inactive until it's applied)…
+  // Day change. Writes ordered so a failure can never leave deletions behind:
+  //   1. stop the old slot — reversible (its previous stop date is restored);
+  //   2. the new slot, exactly as previewed (createSlotExactly: all or nothing);
+  //   3. re-check the envelopes are still empty, then delete them — the only
+  //      irreversible step, last. Nothing can fail after it.
+  // A failure at 2 or 3 undoes the new slot and restores the old stop.
+  const restoreOldStop = () => supabase.from("lesson_series").update({ stops_on: oldStop }).eq("id", old.id);
+  const stop =
+    hooks?.failAt === "stop"
+      ? { error: { message: "Injected test fault: stop" } }
+      : await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id);
+  if (stop.error) return fail(`עצירת המשבצת הישנה נכשלה (${stop.error.message}), ולכן שום דבר לא השתנה. כדאי לנסות שוב.`);
+
   const created = await createSlotExactly(
     supabase,
     { spaceId: old.spaceId, weekday: input.weekday!, time: input.time!, startsOn: input.from, groupId: old.groupId ?? null },
     plan.next!,
   );
-  if (!created.ok) return created;
-  // …then remove the untouched envelopes (guarded: still of the old slot, still not cancelled/moved) and stop the old slot.
+  if (!created.ok) {
+    const { error: e } = await restoreOldStop();
+    if (e) return fail(`${created.message} גם החזרת המשבצת הישנה נכשלה (${e.message}) — כדאי לבדוק את המשבצת.`);
+    return created;
+  }
   const undoNew = async (message: string): Promise<ChangeSlotResult> => {
     const adoptIds = plan.next!.adopt.map((a) => a.id);
     const steps = [
       adoptIds.length ? supabase.from("lessons").update({ series_id: null, series_date: null }).eq("series_id", created.seriesId).in("id", adoptIds) : null,
       supabase.from("lessons").delete().eq("series_id", created.seriesId),
       supabase.from("lesson_series").delete().eq("id", created.seriesId),
-      supabase.from("lesson_series").update({ stops_on: oldStop }).eq("id", old.id),
+      restoreOldStop(),
     ];
     for (const step of steps) {
       if (!step) continue;
@@ -688,6 +705,7 @@ export async function applySlotChange(
       if (rows?.length) filled = true;
     }
     if (filled) return await undoNew("שיעור שהיה אמור להיות מוסר קיבל תוכן בינתיים, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
+    if (hooks?.failAt === "remove") return await undoNew("הסרת השיעורים הריקים נכשלה (Injected test fault: remove).");
     const { data, error } = await supabase
       .from("lessons")
       .delete()
@@ -698,9 +716,10 @@ export async function applySlotChange(
       .eq("time_overridden", false)
       .select("id");
     if (error) return await undoNew(`הסרת השיעורים הריקים נכשלה (${error.message}).`);
+    // If one envelope changed in the milliseconds after the re-check, fewer rows
+    // match: the change is undone (old slot active again), and the next renewal
+    // recreates the deleted empty envelopes for their slot dates — equivalent to before.
     if (data?.length !== removeIds.length) return await undoNew("שיעור שהיה אמור להיות מוסר השתנה בזמן השמירה, ולכן השינוי לא נשמר. כדאי לבדוק שוב.");
   }
-  const { error: stopError } = await supabase.from("lesson_series").update({ stops_on: input.from }).eq("id", old.id);
-  if (stopError) return fail(`המשבצת החדשה נוצרה והשיעורים הריקים הוסרו, אבל עצירת המשבצת הישנה נכשלה (${stopError.message}).`);
   return { ok: true, newSeriesId: created.seriesId };
 }

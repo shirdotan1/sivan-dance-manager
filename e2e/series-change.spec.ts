@@ -161,3 +161,44 @@ test("stopping a slot keeps every existing occurrence and creates nothing from t
   await renewSeries(sb, [SPACE], undefined, [s.id], { from: addDays(todayIL(), 57), to: addDays(todayIL(), 90) });
   expect((await occOf(s.id)).length).toBe(s.occ.length); // nothing new from the date
 });
+
+/** PR #7 fix 2: a failure at any step of a slot change leaves no partial state — and never deletions. */
+const nothingChanged = async (s: { id: string; occ: { id: string; time: string }[]; time: string }, newWeekday: number, newTime: string) => {
+  const sb = await db();
+  expect((await sb.from("lesson_series").select("stops_on").eq("id", s.id).single()).data!.stops_on).toBeNull();
+  const occ = await occOf(s.id);
+  expect(occ.map((o) => o.id).sort()).toEqual(s.occ.map((o) => o.id).sort()); // nothing deleted, nothing moved away
+  for (const o of occ) expect(o.time.slice(0, 5)).toBe(s.time);
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("weekday", newWeekday).eq("time", newTime)).data).toEqual([]);
+};
+
+test("day change: a failure at the stop step changes nothing (no deletions, no new slot)", async () => {
+  const sb = await db();
+  const s = await slot("12", 2);
+  const input: SlotChangeInput = { seriesId: s.id, kind: "day", from: s.occ[0].series_date, weekday: (s.weekday + 1) % 7, time: `${TEST_CORE_HOUR}:13` };
+  const plan = await planSlotChange(sb, input);
+  expect(plan.remove.length).toBeGreaterThan(0);
+  const r = await applySlotChange(sb, input, plan, { failAt: "stop" });
+  expect(r).toMatchObject({ ok: false, reason: "failed" });
+  await nothingChanged(s, input.weekday!, input.time!);
+});
+
+test("day change: a failure at the removal step undoes the new slot and the stop; nothing deleted", async () => {
+  const sb = await db();
+  const s = await slot("17", 3);
+  const input: SlotChangeInput = { seriesId: s.id, kind: "day", from: s.occ[0].series_date, weekday: (s.weekday + 2) % 7, time: `${TEST_CORE_HOUR}:18` };
+  const plan = await planSlotChange(sb, input);
+  const r = await applySlotChange(sb, input, plan, { failAt: "remove" });
+  expect(r).toMatchObject({ ok: false, reason: "changed" });
+  await nothingChanged(s, input.weekday!, input.time!);
+});
+
+test("time change: a failure at the stop step rolls everything back (occurrences back, times restored, no new slot)", async () => {
+  const sb = await db();
+  const s = await slot("22", 4);
+  const input: SlotChangeInput = { seriesId: s.id, kind: "time", from: s.occ[1].series_date, time: `${TEST_CORE_HOUR}:23` };
+  const plan = await planSlotChange(sb, input);
+  const r = await applySlotChange(sb, input, plan, { failAt: "stop" });
+  expect(r).toMatchObject({ ok: false, reason: "changed" });
+  await nothingChanged(s, s.weekday, input.time!);
+});
