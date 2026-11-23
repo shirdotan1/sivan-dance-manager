@@ -83,6 +83,7 @@ console.log(`export: ${file} | app ${doc.app ?? "?"} | format ${doc.format ?? "?
   note("spaces", "compare", error ? error.message : missing.length ? `missing in test: ${missing.join(", ")}` : `${exported.length}/${exported.length} exist`, !error && !missing.length);
 }
 
+/** Every batch that was actually inserted (table + its rows) — undone exactly, even after a mid-table failure. */
 const inserted = [];
 try {
   // Collisions first: restoring must not overwrite anything.
@@ -105,33 +106,39 @@ try {
       continue;
     }
     for (let i = 0; i < rows.length; i += 200) {
-      const { error } = await sb.from(t).insert(rows.slice(i, i + 200));
+      const batch = rows.slice(i, i + 200);
+      const { error } = await sb.from(t).insert(batch);
       if (error) {
-        note(t, "insert", `failed: ${error.message}`, false);
+        note(t, "insert", `failed at rows ${i + 1}–${i + batch.length}: ${error.message}`, false);
         throw new Error(`insert ${t}`);
       }
+      inserted.push({ table: t, rows: batch }); // recorded the moment it exists
     }
-    inserted.push(t);
     const got = await present(t, rows);
     note(t, "insert + verify", `${got.size}/${rows.length} rows present`, got.size === rows.length);
   }
 } catch (e) {
   if (!["collision"].includes(e.message)) note("—", "restore", `stopped: ${e.message}`, false);
 } finally {
-  // Undo: delete exactly the restored ids, children first, and verify.
-  for (const t of [...inserted].reverse()) {
-    const rows = tables[t] ?? [];
-    for (const r of rows) {
-      let q = sb.from(t).delete();
-      for (const c of PK[t] ?? ["id"]) q = q.eq(c, r[c]);
+  // Undo: delete exactly the inserted batches, last first (children before
+  // parents), then verify per table that none of them is left.
+  for (const { table: t, rows } of [...inserted].reverse()) {
+    // Single-key tables: one delete per batch of ids; link tables (composite key): row by row.
+    const deletes = PK[t]
+      ? rows.map((r) => PK[t].reduce((q, c) => q.eq(c, r[c]), sb.from(t).delete()))
+      : [sb.from(t).delete().in("id", rows.map((r) => r.id))];
+    for (const q of deletes) {
       const { error } = await q;
       if (error) {
         note(t, "undo", `delete failed: ${error.message}`, false);
         break;
       }
     }
+  }
+  for (const t of [...new Set(inserted.map((b) => b.table))].reverse()) {
+    const rows = inserted.filter((b) => b.table === t).flatMap((b) => b.rows);
     const left = await present(t, rows);
-    note(t, "undo + verify", `${left.size} restored rows left`, left.size === 0);
+    note(t, "undo + verify", `${left.size} of ${rows.length} restored rows left`, left.size === 0);
   }
 }
 
