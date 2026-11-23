@@ -36,7 +36,8 @@ export default defineConfig({
   webServer: [
     {
       // Production build (env baked from .env.local, i.e. the test project).
-      command: `npm run build && npx next start -p ${PORT}`,
+      // Output is also teed to e2e/.state (checked for prerender errors in global teardown).
+      command: `npm run build && mkdir -p e2e/.state && npx next start -p ${PORT} 2>&1 | tee e2e/.state/server-${PORT}.log`,
       url: `http://localhost:${PORT}/login`,
       reuseExistingServer: true,
       timeout: 240_000,
@@ -44,7 +45,7 @@ export default defineConfig({
     {
       // Same build with per-request fault injection enabled (src/lib/testFaults.ts):
       // a test opts in with the x-test-fault header; test bucket only.
-      command: `npx next start -p ${FAULT_PORT}`,
+      command: `mkdir -p e2e/.state && npx next start -p ${FAULT_PORT} 2>&1 | tee e2e/.state/server-${FAULT_PORT}.log`,
       url: `http://localhost:${FAULT_PORT}/login`,
       reuseExistingServer: true,
       timeout: 60_000,

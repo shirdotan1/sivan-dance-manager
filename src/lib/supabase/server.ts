@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 function env() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,8 +41,14 @@ export async function createClient() {
  * Data Access Layer entry point: verifies the signed-in user (JWT checked
  * by Supabase) and returns a client. Every read and Server Action goes
  * through this, so authorization never relies on the UI alone.
+ *
+ * Request-time only: `connection()` stops every render that is not a real
+ * request (build prerender, a link's prefetch) before the session loads.
+ * The session load reads the clock, and what callers do with the client —
+ * the weekly-slot renewal writes rows — must never run in a prefetch.
  */
 export async function requireUser() {
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims) redirect("/login");

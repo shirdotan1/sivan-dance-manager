@@ -15,6 +15,7 @@ import {
 } from "@/lib/calendar";
 import { formatDate, todayIso } from "@/lib/format";
 import { NEUTRAL_COLOR } from "@/lib/palette";
+import { testFault } from "@/lib/testFaults";
 
 export const metadata: Metadata = { title: "לוח שנה" };
 
@@ -25,6 +26,8 @@ export const metadata: Metadata = { title: "לוח שנה" };
  */
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const { month: monthParam, day: dayParam } = await searchParams;
+  // Request-time from here on: requireUser waits for a real request, so "today" is never prerendered.
+  const { supabase } = await requireUser();
   const today = todayIso();
   const month = isYearMonth(monthParam) ? monthParam : isPlainDate(dayParam) ? dayParam.slice(0, 7) : today.slice(0, 7);
   const weeks = monthWeeks(month);
@@ -33,11 +36,17 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const { first } = monthRange(month);
   const selected = isPlainDate(dayParam) && dayParam.slice(0, 7) === month ? dayParam : today.startsWith(month) ? today : first;
 
-  // Weekly slots: fill the next 8 weeks before showing the month (failure must not hide the calendar).
-  const { supabase } = await requireUser();
-  await renewSeries(supabase)
-    .then((r) => r.conflicts.length && console.warn("series renewal skipped conflicting dates", r.conflicts))
-    .catch((e) => console.error("series renewal failed", e));
+  // Weekly slots: fill the next 8 weeks before showing the month. A failure
+  // must not hide the calendar: it is shown above the month (and logged).
+  const renewalError = await (async () => {
+    if (await testFault("renewal")) throw new Error("Injected test fault: renewal");
+    const r = await renewSeries(supabase);
+    if (r.conflicts.length) console.warn("series renewal skipped conflicting dates", r.conflicts);
+    return null;
+  })().catch((e: unknown) => {
+    console.error("series renewal failed", e);
+    return e instanceof Error ? e.message : String(e);
+  });
   const [events, legend, spaces, projects] = await Promise.all([
     getCalendarEvents(gridFirst, gridLast),
     getCalendarLegend(),
@@ -54,6 +63,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   return (
     <>
       <h1 className="mb-4">לוח שנה</h1>
+      {renewalError && (
+        <p role="alert" className="mb-4 rounded-2xl bg-danger-soft p-3 text-sm font-medium">
+          חידוש השיעורים של המשבצות נכשל כרגע, ולכן ייתכן ששיעורים קרובים חסרים בלוח. השיעורים שכבר קיימים מוצגים; פתיחה מחדש של הדף
+          תנסה שוב.
+          <span className="block font-normal text-muted" dir="auto">
+            ({renewalError})
+          </span>
+        </p>
+      )}
 
       <nav aria-label="מעבר בין חודשים" className="mb-3 flex items-center justify-between gap-2">
         <Link href={monthLink(shiftMonth(month, -1))} className="btn btn-secondary btn-compact" aria-label={`החודש הקודם: ${formatMonth(shiftMonth(month, -1))}`}>

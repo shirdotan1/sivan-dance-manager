@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import { chromium, type FullConfig } from "@playwright/test";
 import { assertTestEnvironment, cleanup, db } from "./support/env";
+import { markServerLogs } from "./support/serverLog";
 
 /** Guard + leftover cleanup + one login shared by all tests. */
 export default async function globalSetup(config: FullConfig) {
   assertTestEnvironment();
+  markServerLogs();
   console.log("cleanup before:", JSON.stringify(await cleanup(await db())));
   const baseURL = config.projects[0].use.baseURL!;
   const browser = await chromium.launch();
