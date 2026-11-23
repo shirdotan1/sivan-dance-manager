@@ -188,3 +188,24 @@ test("a candidate moved between the read and the update is not adopted; the date
   expect(next.changed).toEqual([]);
   expect((await sb.from("lessons").select("id").eq("series_id", seriesId).eq("series_date", date)).data).toHaveLength(1);
 });
+
+test("creation: a one-off cancelled between the preview and the apply is not adopted — refused and fully rolled back", async () => {
+  const sb = await db();
+  const time = `${TEST_CORE_HOUR}:05`;
+  const date = addDays(todayIL(), 19);
+  const input = { spaceId: SPACE, weekday: weekdayOf(date), time, startsOn: todayIL(), groupId: null };
+  const { data: l } = await sb.from("lessons").insert({ space_id: SPACE, date, time, notes: `${TAG} בוטל-באמצע` }).select("id").single();
+  const expected = await previewNewSeries(sb, input);
+  expect(expected.adopt.map((a) => a.id)).toEqual([l!.id]);
+  const r = await createSlotExactly(sb, input, expected, {
+    beforeApply: async () => {
+      const { error } = await sb.from("lessons").update({ cancelled_at: new Date().toISOString() }).eq("id", l!.id);
+      if (error) throw error;
+    },
+  });
+  expect(r).toMatchObject({ ok: false, reason: "changed" });
+  const { data: after } = await sb.from("lessons").select("series_id,cancelled_at").eq("id", l!.id).single();
+  expect(after!.series_id).toBeNull(); // not adopted
+  expect(after!.cancelled_at).toBeTruthy();
+  expect((await sb.from("lesson_series").select("id").eq("space_id", SPACE).eq("time", time).eq("weekday", input.weekday)).data).toEqual([]);
+});

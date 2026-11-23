@@ -367,6 +367,7 @@ export async function createSlotExactly(
         .is("series_id", null)
         .eq("date", a.date)
         .eq("time", input.time)
+        .is("cancelled_at", null) // the full snapshot identity, like renewal: a lesson cancelled since isn't adopted
         .select("id");
       if (e) throw new Error(`adopting the lesson of ${a.date} failed: ${e.message}`);
       if (data?.length !== 1) return await rollback("שיעור שהיה אמור להצטרף למשבצת השתנה בינתיים, ולכן המשבצת לא נוצרה. כדאי לבדוק שוב.");
