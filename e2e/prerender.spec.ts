@@ -15,12 +15,24 @@ import { expect, go, main, test, vis } from "./support/fixtures";
 const todayIL = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
 const tomorrowWeekdayIL = () => (new Date(`${todayIL()}T12:00:00Z`).getUTCDay() + 1) % 7;
 
-/** Resolves when the browser has received the prefetch of that page's own segment. */
-const pagePrefetched = (page: Page, path: string) =>
-  page.waitForResponse((r) => {
-    const segment = r.request().headers()["next-router-segment-prefetch"] ?? "";
-    return segment.endsWith("/__PAGE__") && new URL(r.url()).pathname === path;
+/**
+ * Resolves once the prefetch of a route's page segment has been fully
+ * received. It must be a prefetch (`Next-Router-Prefetch: 1`) of that page
+ * segment — otherwise the wait times out and the test fails, so a test can
+ * never pass on a prefetch that did not happen. The body is awaited to its
+ * end: the server's prefetch render is over.
+ * Matched by the segment key (e.g. `/spaces/$d$spaceId/__PAGE__`), not by the
+ * URL: the App Shell is shared by every link to the route, so it is fetched
+ * once, through whichever link was seen first.
+ */
+async function pagePrefetched(page: Page, segment: string) {
+  const response = await page.waitForResponse((r) => {
+    const h = r.request().headers();
+    return h["next-router-prefetch"] === "1" && h["next-router-segment-prefetch"] === segment;
   });
+  await response.finished();
+  return response;
+}
 
 test("a prefetch of the calendar alone never renews a slot; a real view of the calendar does", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-390", "no layout involved: once is enough");
@@ -39,7 +51,7 @@ test("a prefetch of the calendar alone never renews a slot; a real view of the c
   };
 
   // /materials does not renew; its header link prefetches the calendar page.
-  const prefetched = pagePrefetched(page, "/calendar");
+  const prefetched = pagePrefetched(page, "/calendar/__PAGE__");
   await go(page, "/materials");
   await prefetched;
   await page.waitForTimeout(2000); // anything the prefetch render started has had time to land
@@ -51,10 +63,13 @@ test("a prefetch of the calendar alone never renews a slot; a real view of the c
 });
 
 test("space page reached through a prefetched link: no false renewal alert", async ({ page }) => {
-  const prefetched = pagePrefetched(page, "/spaces/new-high-school");
+  const prefetched = pagePrefetched(page, "/spaces/$d$spaceId/__PAGE__");
   await go(page, "/");
   const link = vis(page.locator('main a[href="/spaces/new-high-school"]')).first();
-  await link.scrollIntoViewIfNeeded(); // a link is prefetched once it is in the viewport (below the fold on a phone)
+  // A link is prefetched once in the viewport (below the fold on a phone); hovering
+  // makes it a high-priority prefetch instead of waiting for the idle queue.
+  await link.scrollIntoViewIfNeeded();
+  await link.hover();
   await prefetched;
   await link.click();
   await page.waitForURL("**/spaces/new-high-school");
@@ -65,10 +80,12 @@ test("space page reached through a prefetched link: no false renewal alert", asy
 });
 
 test("calendar reached through a prefetched link: no false renewal alert", async ({ page }) => {
-  const prefetched = pagePrefetched(page, "/calendar");
+  const prefetched = pagePrefetched(page, "/calendar/__PAGE__");
   await go(page, "/materials");
+  const link = vis(page.locator('a[href="/calendar"]')).first();
+  await link.hover();
   await prefetched;
-  await vis(page.locator('a[href="/calendar"]')).first().click();
+  await link.click();
   await page.waitForURL("**/calendar");
   await expect(vis(page.getByRole("heading", { level: 1, name: "לוח שנה" }))).toBeVisible();
   await page.waitForLoadState("networkidle");
