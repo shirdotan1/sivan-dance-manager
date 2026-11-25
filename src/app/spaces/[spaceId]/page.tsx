@@ -7,6 +7,7 @@ import { GroupCard } from "@/components/GroupCard";
 import { GroupForm } from "@/components/GroupForm";
 import { PoolManager } from "@/components/PoolManager";
 import { SeriesChangeForm, SeriesForm } from "@/components/SeriesManager";
+import { SpaceOverview } from "@/components/SpaceOverview";
 import { createGroup } from "@/lib/actions/groups";
 import { getLessonsForSpace, getProjects, getMaterials, getSpace } from "@/lib/data/queries";
 import { getSeriesForSpace, renewSeries, slotDates, type Conflict } from "@/lib/data/series";
@@ -168,6 +169,8 @@ async function StudioSpaceView({ space }: { space: StudioSpace }) {
         )}
       </section>
 
+      <SpaceOverview space={space} />
+
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">
           מאגר התלמידות ({pool.length})
@@ -247,6 +250,8 @@ async function PrivateSpaceView({ space }: { space: PrivateSpace }) {
           })}
         </ul>
       </section>
+
+      <SpaceOverview space={space} />
 
       <section aria-labelledby="students-heading">
         <h2 id="students-heading" className="mb-3">

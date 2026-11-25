@@ -77,9 +77,9 @@ test("FINAL-2: a renamed student shows the new name across her history", async (
   }
 });
 
-test("student card summary: balance, latest activity, participations", async ({ page }) => {
+test("student card summary: sessions in the project, this month, last and next, payments", async ({ page }) => {
   await go(page, `/students/${SEED.student.id}`);
-  for (const t of ["יתרה פתוחה", "פעילות אחרונה", "השתתפויות"]) await expect(main(page)).toContainText(t);
+  for (const t of ["מפגשים בפרויקט", "החודש", "מפגש אחרון", "הבא בתור", "תשלומים", "פתוח"]) await expect(main(page)).toContainText(t);
   await expect(vis(page.locator("dd a[href*='/sessions/'], dd a[href*='/lessons/']")).first()).toBeVisible();
   await expectNoOverflow(page);
 });
