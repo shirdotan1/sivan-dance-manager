@@ -11,12 +11,14 @@ import {
   isMediaContentType,
   newObjectKey,
   ownerPrefix,
+  signDownload,
   signParts,
   signUpload,
   signView,
   startMultipart,
   type MediaOwner,
 } from "@/lib/storage/r2";
+import { attachmentDisposition, mediaFileName } from "@/lib/media/filename";
 import type { MediaKind } from "@/lib/types";
 
 /**
@@ -74,12 +76,26 @@ export type MediaView = {
   url?: string;
   contentType?: string;
   sizeBytes?: number;
+  /** Name for download and share (caption or kind, event date, extension); absent for placeholders. */
+  fileName?: string;
 };
 
-async function toView(row: Row): Promise<MediaView> {
+async function toView(row: Row, eventDate: string | null): Promise<MediaView> {
   const base = { id: row.id, kind: row.kind, caption: row.caption };
   if (!row.storage_key) return base;
-  return { ...base, url: await signView(row.storage_key), contentType: row.content_type ?? undefined, sizeBytes: row.size_bytes ?? undefined };
+  return {
+    ...base,
+    url: await signView(row.storage_key),
+    contentType: row.content_type ?? undefined,
+    sizeBytes: row.size_bytes ?? undefined,
+    fileName: mediaFileName({ caption: row.caption, kind: row.kind, date: eventDate, contentType: row.content_type }).name,
+  };
+}
+
+/** The lesson's or session's date (for file names); null if it can't be read. */
+async function eventDate(supabase: Awaited<ReturnType<typeof isSignedIn>>["supabase"], owner: MediaOwner): Promise<string | null> {
+  const { data } = await supabase.from(owner.kind === "lesson" ? "lessons" : "sessions").select("date").eq("id", owner.id).maybeSingle<{ date: string }>();
+  return data?.date ?? null;
 }
 
 /** Loads a media row and checks access to its lesson/session. */
@@ -155,9 +171,9 @@ export async function signUploadParts(mediaId: string, input: { uploadId?: unkno
 export async function completeUpload(mediaId: string, input: { uploadId?: unknown; parts?: unknown }) {
   const a = await accessForMedia(mediaId, "manage");
   if (!a.ok) return a;
-  const { row, supabase } = a;
+  const { row, supabase, owner } = a;
   if (!row.storage_key) return fail(409, "לפריט הזה אין קובץ.");
-  if (row.uploaded_at) return { ok: true as const, media: await toView(row) }; // already confirmed (retry)
+  if (row.uploaded_at) return { ok: true as const, media: await toView(row, await eventDate(supabase, owner)) }; // already confirmed (retry)
 
   if (typeof input.uploadId === "string") {
     const parts = Array.isArray(input.parts) ? input.parts : [];
@@ -192,7 +208,7 @@ export async function completeUpload(mediaId: string, input: { uploadId?: unknow
     .select(ROW)
     .single<Row>();
   if (error || !done) return fail(500, "שמירת הפריט נכשלה. כדאי לנסות שוב.");
-  return { ok: true as const, media: await toView(done) };
+  return { ok: true as const, media: await toView(done, await eventDate(supabase, owner)) };
 }
 
 export async function abortUpload(mediaId: string, input: { uploadId?: unknown }) {
@@ -247,7 +263,28 @@ export async function getEventMedia(owner: MediaOwner) {
     .or("storage_key.is.null,uploaded_at.not.is.null")
     .order("position")
     .returns<Row[]>();
-  return Promise.all((data ?? []).map(toView));
+  const date = await eventDate(access.supabase, owner);
+  return Promise.all((data ?? []).map((row) => toView(row, date)));
+}
+
+// ---------- Download ----------
+
+/**
+ * A fresh signed URL that serves the original file as an attachment, named
+ * like the page names it. Same access check as viewing ("view"); confirmed
+ * uploads only. The download route redirects to it — no public URL.
+ */
+export async function getDownloadUrl(mediaId: string) {
+  const access = await accessForMedia(mediaId, "view");
+  if (!access.ok) return access;
+  const { row, owner, supabase } = access;
+  if (!row.storage_key || !row.uploaded_at) return fail(404, "לפריט הזה אין קובץ.");
+  const name = mediaFileName({ caption: row.caption, kind: row.kind, date: await eventDate(supabase, owner), contentType: row.content_type });
+  try {
+    return { ok: true as const, url: await signDownload(row.storage_key, attachmentDisposition(name)) };
+  } catch {
+    return fail(502, "האחסון לא זמין כרגע. כדאי לנסות שוב.");
+  }
 }
 
 /**

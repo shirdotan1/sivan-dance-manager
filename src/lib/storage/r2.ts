@@ -13,6 +13,7 @@ import {
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { extensionFor } from "@/lib/media/filename";
 import { testFault } from "@/lib/testFaults";
 
 /**
@@ -46,27 +47,13 @@ export type MediaOwner = { kind: "lesson" | "session"; id: string };
 export const ownerPrefix = (owner: MediaOwner) => `${owner.kind}s/${owner.id}/`;
 
 const CONTENT_TYPE_RE = /^(image|video)\/[a-z0-9.+-]+$/;
-const EXT: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "image/avif": "avif",
-  "video/mp4": "mp4",
-  "video/quicktime": "mov",
-  "video/webm": "webm",
-  "video/3gpp": "3gp",
-  "video/x-matroska": "mkv",
-};
 
 /** Only photos and videos are accepted (no size limit — product decision). */
 export const isMediaContentType = (t: unknown): t is string => typeof t === "string" && CONTENT_TYPE_RE.test(t);
 
 /** A new object key, chosen by the server (never from the file name). */
 export function newObjectKey(owner: MediaOwner, contentType: string) {
-  return `${ownerPrefix(owner)}${crypto.randomUUID()}.${EXT[contentType] ?? "bin"}`;
+  return `${ownerPrefix(owner)}${crypto.randomUUID()}.${extensionFor(contentType)}`;
 }
 
 /** Upload links are short: an upload starts right after it is signed. */
@@ -171,6 +158,18 @@ export async function signView(key: string) {
   const hour = new Date();
   hour.setUTCMinutes(0, 0, 0);
   return getSignedUrl(client, new GetObjectCommand({ Bucket, Key: key }), { expiresIn: 2 * 60 * 60, signingDate: hour });
+}
+
+/**
+ * Signed download URL: the same object, served as an attachment with a name.
+ * Issued per click after an access check (the download route redirects to
+ * it), so it only has to live long enough for the redirect to be followed.
+ */
+export async function signDownload(key: string, contentDisposition: string) {
+  const { client, Bucket } = s3();
+  return getSignedUrl(client, new GetObjectCommand({ Bucket, Key: key, ResponseContentDisposition: contentDisposition }), {
+    expiresIn: 5 * 60,
+  });
 }
 
 function isNotFound(e: unknown) {
