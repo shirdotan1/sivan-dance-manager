@@ -34,6 +34,7 @@ test.describe("signed out", () => {
       request.post(`/api/media/uploads/${RANDOM_ID}/complete`, json),
       request.post(`/api/media/uploads/${RANDOM_ID}/abort`, json),
       request.delete(`/api/media/${RANDOM_ID}`),
+      request.get(`/api/media/${RANDOM_ID}/download`, { maxRedirects: 0 }),
     ];
     for (const res of await Promise.all(calls)) {
       expect(res.status(), res.url()).toBe(401);

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { MediaActions } from "@/components/media/MediaActions";
 import type { MediaView } from "@/lib/data/media";
 import { formatBytes } from "@/lib/format";
 import { deleteMediaItem, uploadMedia } from "@/lib/media/upload";
@@ -15,8 +16,8 @@ type QueueItem = { key: string; name: string; progress: number; state: "waiting"
 
 /**
  * The lesson/session media section: a grid (photos open in a dialog, videos
- * play inline), upload straight to private storage with progress and
- * cancel, and delete (file + item).
+ * play inline), download and share of each file, upload straight to
+ * private storage with progress and cancel, and delete (file + item).
  */
 export function MediaManager({ owner, items, usageBytes }: { owner: MediaOwner; items: MediaView[]; usageBytes: number }) {
   const id = useId();
@@ -150,9 +151,7 @@ export function MediaManager({ owner, items, usageBytes }: { owner: MediaOwner; 
                   ) : broken.has(m.id) ? (
                     <div className="grid place-items-center gap-1 rounded-lg bg-danger-soft p-4 text-center text-sm">
                       <p>{m.kind === "video" ? "הפורמט של הסרטון לא נתמך בדפדפן הזה." : "הפורמט של התמונה לא נתמך בדפדפן הזה."}</p>
-                      <a href={m.url} target="_blank" rel="noopener" className="tap-link text-brand-strong underline underline-offset-4">
-                        פתיחת הקובץ<span className="visually-hidden"> {name}</span>
-                      </a>
+                      <p className="text-muted">אפשר להוריד או לשתף את הקובץ.</p>
                     </div>
                   ) : m.kind === "video" ? (
                     <video
@@ -179,6 +178,7 @@ export function MediaManager({ owner, items, usageBytes }: { owner: MediaOwner; 
                     {m.caption}
                     {!m.url && <span className="block text-muted">מציין מקום — אין קובץ</span>}
                   </figcaption>
+                  {m.url && <MediaActions item={m} name={name} />}
                   <div>
                     <ConfirmDialog
                       triggerLabel="מחיקה"
@@ -253,8 +253,9 @@ export function MediaManager({ owner, items, usageBytes }: { owner: MediaOwner; 
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={open.url} alt={open.caption || ""} />
-          <div className="flex items-center justify-between gap-3 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
             <p className="text-sm">{open.caption}</p>
+            <MediaActions item={open} name={open.caption || "תמונה"} />
             <button type="button" className="btn btn-secondary btn-compact" autoFocus onClick={() => dialogRef.current?.close()}>
               סגירה
             </button>

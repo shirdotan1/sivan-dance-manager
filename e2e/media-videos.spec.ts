@@ -113,7 +113,9 @@ test("a 12 MB video goes up in two parts; a format the browser can't play shows 
 
   const item = section.getByRole("listitem").filter({ hasText: caption });
   await expect(item).toContainText("הפורמט של הסרטון לא נתמך בדפדפן הזה.");
-  await expect(item.getByRole("link", { name: /פתיחת הקובץ/ })).toHaveAttribute("href", /X-Amz-Signature=/);
+  // Unsupported format: download (and share where the browser can) instead of a bare "open the file" link.
+  await expect(item.getByRole("link", { name: /פתיחת הקובץ/ })).toHaveCount(0);
+  await expect(item.getByRole("link", { name: `הורדה של ${caption}` })).toHaveAttribute("href", /^\/api\/media\/[0-9a-f-]+\/download$/);
 });
 
 test("a dropped part is retried with a fresh signed URL and the upload succeeds", async ({ page, consoleErrors }, info) => {
