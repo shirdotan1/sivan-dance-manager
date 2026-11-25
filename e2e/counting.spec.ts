@@ -31,7 +31,7 @@ const spaceHeld = async (page: Page) => {
 };
 const studentCount = async (page: Page, id: string) => {
   await go(page, `/students/${id}`);
-  const dd = main(page).locator("dt", { hasText: "השתתפויות" }).locator("xpath=following-sibling::dd[1]");
+  const dd = main(page).locator("dt", { hasText: "שיעורים שהייתה בהם" }).locator("xpath=following-sibling::dd[1]");
   return Number(await dd.innerText());
 };
 
