@@ -142,7 +142,7 @@ test("share call: the file itself and the caption as text — never a URL; cance
   expect(activationExpired({}), "no userActivation: just try").toBe(false);
 });
 
-// ---------- Share in the page (phone; the share API is stood in for) ----------
+// ---------- Share in the page (both widths; the share API is stood in for) ----------
 
 type Mock = { canShare?: boolean; reject?: string[]; activationExpired?: boolean };
 /** Stands in for the Web Share API; records what would be shared. */
@@ -174,8 +174,7 @@ async function itemOf(page: Page, caption: string) {
 }
 
 test("share: one tap shares the file itself with the caption; no signed URL is handed over", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} שיתוף`;
+  const caption = `${TAG} שיתוף ${info.project.name}`;
   await uploadPhoto(request, { kind: "lesson", id: lessonId }, caption);
   await mockShare(page, {});
   const item = await itemOf(page, caption);
@@ -196,8 +195,7 @@ test("share: one tap shares the file itself with the caption; no signed URL is h
 });
 
 test("share: when the tap no longer counts, the button becomes 'הקובץ מוכן: שיתוף' and a second tap shares", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} שיתוף בשתי לחיצות`;
+  const caption = `${TAG} שיתוף בשתי לחיצות ${info.project.name}`;
   await uploadPhoto(request, { kind: "lesson", id: lessonId }, caption);
   await mockShare(page, { reject: ["NotAllowedError"] });
   const item = await itemOf(page, caption);
@@ -211,8 +209,7 @@ test("share: when the tap no longer counts, the button becomes 'הקובץ מו�
 });
 
 test("share: if the tap expired during the download, it waits for a second tap without trying", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} שיתוף אחרי המתנה`;
+  const caption = `${TAG} שיתוף אחרי המתנה ${info.project.name}`;
   await uploadPhoto(request, { kind: "lesson", id: lessonId }, caption);
   await mockShare(page, { activationExpired: true });
   const item = await itemOf(page, caption);
@@ -224,8 +221,7 @@ test("share: if the tap expired during the download, it waits for a second tap w
 });
 
 test("share: no button where the browser can't share the file — download only, never a dead button", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} רק הורדה`;
+  const caption = `${TAG} רק הורדה ${info.project.name}`;
   await uploadPhoto(request, { kind: "lesson", id: lessonId }, caption);
   await mockShare(page, { canShare: false });
   const item = await itemOf(page, caption);
@@ -234,8 +230,7 @@ test("share: no button where the browser can't share the file — download only,
 });
 
 test("unsupported format (HEVC .mov): download and share instead of a bare 'open the file' link", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} HEVC`;
+  const caption = `${TAG} HEVC ${info.project.name}`;
   const mov = Buffer.alloc(4096, 1); // not playable here: the item shows as unsupported
   const mediaId = await uploadFile(request, { kind: "lesson", id: lessonId }, caption, { contentType: "video/quicktime", body: mov });
   await mockShare(page, {});
@@ -250,8 +245,7 @@ test("unsupported format (HEVC .mov): download and share instead of a bare 'open
 });
 
 test("photo dialog: download and share are there too", async ({ page, request }, info) => {
-  phoneOnly(info.project.name);
-  const caption = `${TAG} בדיאלוג`;
+  const caption = `${TAG} בדיאלוג ${info.project.name}`;
   await uploadPhoto(request, { kind: "lesson", id: lessonId }, caption);
   await mockShare(page, {});
   const item = await itemOf(page, caption);
